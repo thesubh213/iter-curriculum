@@ -34,6 +34,7 @@ class CurriculumApp {
         this.isFirstLoad = true;
         this.lastViewedImagePath = '';
         this.isLoadingFromState = false;
+        this.isPageReload = this.detectPageReload();
         
         this.init();
     }
@@ -42,6 +43,11 @@ class CurriculumApp {
         this.registerServiceWorker();
         this.bindEvents();
         this.loadSavedState();
+        
+        if (this.isPageReload && this.selections.batch && this.selections.stream && this.selections.semester) {
+            this.showImageLoadingWithProgress('Restoring your session...');
+        }
+        
         this.updateUI();
     }
 
@@ -231,7 +237,13 @@ class CurriculumApp {
         this.selections.semester = value;
         this.saveState();
         
-        this.showImageLoadingWithProgress('Preparing curriculum...');
+        this.setupLoadingSteps([
+            { name: 'Preparing curriculum...', weight: 25 },
+            { name: 'Discovering curriculum images...', weight: 25 },
+            { name: 'Loading additional files...', weight: 25 },
+            { name: 'Preloading images for smooth navigation...', weight: 25 }
+        ]);
+        this.updateLoadingStep(0);
         
         await this.loadCurriculumImages();
         this.showSection('viewer-section');
@@ -269,6 +281,8 @@ class CurriculumApp {
                 headerOptions.style.display = 'flex';
                 oneTimeIndicator.classList.add('hidden');
                 
+                this.ensureToolbarVisibility();
+                
                 setTimeout(() => {
                     this.bindImageEvents();
                 }, 100);
@@ -292,18 +306,53 @@ class CurriculumApp {
         }, 150);
     }
 
+    ensureToolbarVisibility() {
+        const toolbar = document.querySelector('.viewer-controls');
+        if (toolbar) {
+            toolbar.style.display = 'flex';
+            toolbar.style.visibility = 'visible';
+            toolbar.style.opacity = '1';
+            toolbar.style.pointerEvents = 'auto';
+            toolbar.style.zIndex = '1001';
+            
+            const controlGroups = toolbar.querySelectorAll('.control-group');
+            controlGroups.forEach(group => {
+                group.style.display = 'flex';
+                group.style.visibility = 'visible';
+                group.style.opacity = '1';
+            });
+            
+            const buttons = toolbar.querySelectorAll('.control-btn');
+            buttons.forEach(button => {
+                button.style.display = 'flex';
+                button.style.visibility = 'visible';
+                button.style.opacity = '1';
+                button.style.pointerEvents = 'auto';
+            });
+            
+            console.log('Toolbar visibility ensured');
+        } else {
+            console.warn('Toolbar not found');
+        }
+    }
+
     async loadCurriculumImages() {
-        this.setupLoadingSteps([
-            { name: 'Discovering curriculum images...', weight: 20 },
-            { name: 'Loading additional files...', weight: 30 },
-            { name: 'Preloading images for smooth navigation...', weight: 30 },
-            { name: 'Loading current image...', weight: 20 }
-        ]);
+        if (this.loadingSteps.length === 0) {
+            this.setupLoadingSteps([
+                { name: 'Discovering curriculum images...', weight: 20 },
+                { name: 'Loading additional files...', weight: 30 },
+                { name: 'Preloading images for smooth navigation...', weight: 30 },
+                { name: 'Loading current image...', weight: 20 }
+            ]);
+        }
         
         try {
             const { stream, semester } = this.selections;
             
-            this.updateLoadingStep(0);
+            if (this.currentLoadingStep === 0) {
+                this.updateLoadingStep(0);
+            }
+            
             this.currentImageSet = await this.discoverSemesterImages(semester);
             this.currentImageIndex = 0;
             
@@ -324,12 +373,19 @@ class CurriculumApp {
             }
             
             this.updateImageNavigation();
+            
+            this.loadingSteps = [];
+            this.currentLoadingStep = 0;
+            
         } catch (error) {
             console.error('Error loading curriculum images:', error);
             this.showImageLoadingWithProgress('Error loading curriculum');
             setTimeout(() => {
                 this.hideImageLoading();
             }, 2000);
+            
+            this.loadingSteps = [];
+            this.currentLoadingStep = 0;
         }
     }
 
@@ -553,6 +609,12 @@ class CurriculumApp {
         
         const totalProgress = previousStepsWeight + (stepWeight * stepProgress / 100);
         this.updateLoadingProgress(totalProgress);
+        
+        if (stepProgress > 0 && stepProgress < 100) {
+            setTimeout(() => {
+                this.updateLoadingProgress(totalProgress + 1);
+            }, 50);
+        }
     }
 
     showImageLoadingWithProgress(message = 'Loading...') {
@@ -569,6 +631,11 @@ class CurriculumApp {
             clearInterval(this.loadProgressInterval);
             this.loadProgressInterval = null;
         }
+        
+        // Ensure the loading element is visible
+        loadingElement.style.display = 'block';
+        loadingElement.style.visibility = 'visible';
+        loadingElement.style.opacity = '1';
     }
 
     updateLoadingProgress(progress) {
@@ -1093,8 +1160,10 @@ class CurriculumApp {
             this.updateMainDropdowns();
             if (newBatch) {
                 this.setupLoadingSteps([
-                    { name: 'Applying batch changes...', weight: 50 },
-                    { name: 'Loading curriculum...', weight: 50 }
+                    { name: 'Applying batch changes...', weight: 20 },
+                    { name: 'Discovering curriculum images...', weight: 30 },
+                    { name: 'Loading additional files...', weight: 30 },
+                    { name: 'Preloading images for smooth navigation...', weight: 20 }
                 ]);
                 this.updateLoadingStep(0);
                 await this.handleBatchChange(newBatch);
@@ -1107,8 +1176,10 @@ class CurriculumApp {
             this.updateMainDropdowns();
             if (newStream) {
                 this.setupLoadingSteps([
-                    { name: 'Applying stream changes...', weight: 50 },
-                    { name: 'Loading curriculum...', weight: 50 }
+                    { name: 'Applying stream changes...', weight: 20 },
+                    { name: 'Discovering curriculum images...', weight: 30 },
+                    { name: 'Loading additional files...', weight: 30 },
+                    { name: 'Preloading images for smooth navigation...', weight: 20 }
                 ]);
                 this.updateLoadingStep(0);
                 await this.handleStreamChange(newStream);
@@ -1119,7 +1190,10 @@ class CurriculumApp {
             this.selections.semester = newSemester;
             this.updateMainDropdowns();
             this.setupLoadingSteps([
-                { name: 'Loading new semester...', weight: 100 }
+                { name: 'Applying semester changes...', weight: 20 },
+                { name: 'Discovering curriculum images...', weight: 30 },
+                { name: 'Loading additional files...', weight: 30 },
+                { name: 'Preloading images for smooth navigation...', weight: 20 }
             ]);
             this.updateLoadingStep(0);
             await this.handleSemesterChange(newSemester);
@@ -1226,10 +1300,11 @@ class CurriculumApp {
         }
 
         if (this.currentSection === 'viewer-section' && this.selections.batch && this.selections.stream && this.selections.semester) {
-            if (!this.isFirstLoad) {
+            if (this.isPageReload || !this.isFirstLoad) {
                 this.setupLoadingSteps([
-                    { name: 'Restoring your previous session...', weight: 30 },
-                    { name: 'Loading curriculum images...', weight: 40 },
+                    { name: 'Restoring your previous session...', weight: 20 },
+                    { name: 'Discovering curriculum images...', weight: 25 },
+                    { name: 'Loading additional files...', weight: 25 },
                     { name: 'Loading your previous image...', weight: 30 }
                 ]);
                 this.updateLoadingStep(0);
@@ -1238,23 +1313,27 @@ class CurriculumApp {
             await this.loadCurriculumImages();
             this.showSection('viewer-section');
             
-            if (this.lastViewedImagePath && !this.isFirstLoad) {
+            setTimeout(() => {
+                this.ensureToolbarVisibility();
+            }, 500);
+            
+            if (this.lastViewedImagePath && (this.isPageReload || !this.isFirstLoad)) {
                 const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
                 if (imageIndex !== -1) {
-                    this.updateLoadingStep(2);
+                    this.updateLoadingStep(3);
                     setTimeout(async () => {
                         await this.loadImageByIndex(imageIndex);
                     }, 500);
                 } else {
                     if (this.currentImageIndex > 0 && this.currentImageIndex < this.currentImageSet.length) {
-                        this.updateLoadingStep(2);
+                        this.updateLoadingStep(3);
                         setTimeout(async () => {
                             await this.loadImageByIndex(this.currentImageIndex);
                         }, 500);
                     }
                 }
-            } else if (this.currentImageIndex > 0 && this.currentImageIndex < this.currentImageSet.length && !this.isFirstLoad) {
-                this.updateLoadingStep(2);
+            } else if (this.currentImageIndex > 0 && this.currentImageIndex < this.currentImageSet.length && (this.isPageReload || !this.isFirstLoad)) {
+                this.updateLoadingStep(3);
                 setTimeout(async () => {
                     await this.loadImageByIndex(this.currentImageIndex);
                 }, 500);
@@ -1309,6 +1388,26 @@ class CurriculumApp {
 
     showPopup() {
         document.getElementById('popup').classList.add('active');
+    }
+
+    detectPageReload() {
+        if (performance && performance.navigation) {
+            return performance.navigation.type === 1; // TYPE_RELOAD = 1
+        }
+        
+        const hasCachedData = localStorage.getItem('iterCurriculumState') !== null;
+        
+        const sessionKey = 'iter_curriculum_session';
+        const currentSession = sessionStorage.getItem(sessionKey);
+        const newSession = Date.now().toString();
+        
+        if (currentSession) {
+            sessionStorage.setItem(sessionKey, newSession);
+            return true;
+        } else {
+            sessionStorage.setItem(sessionKey, newSession);
+            return false;
+        }
     }
 }
 let app;
