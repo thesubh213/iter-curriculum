@@ -16,13 +16,40 @@ class CurriculumApp {
         this.isViewingAdditionalFile = false;
         this.previousCurriculumIndex = 0;
         
+        this.imageCache = new Map();
+        this.preloadQueue = [];
+        this.isPreloading = false;
+        this.currentLoadProgress = 0;
+        this.loadProgressInterval = null;
+        
         this.init();
     }
 
     init() {
+        this.registerServiceWorker();
         this.bindEvents();
         this.loadSavedState();
         this.updateUI();
+    }
+
+    async registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.register('/sw.js');
+                console.log('Service Worker registered:', registration);
+                
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log('New version available');
+                        }
+                    });
+                });
+            } catch (error) {
+                console.error('Service Worker registration failed:', error);
+            }
+        }
     }
 
     bindEvents() {
@@ -201,7 +228,7 @@ class CurriculumApp {
     }
 
     async loadCurriculumImages() {
-        this.showImageLoading();
+        this.showImageLoadingWithProgress();
         
         const { stream, semester } = this.selections;
         this.currentImageSet = await this.discoverSemesterImages(semester);
@@ -210,7 +237,9 @@ class CurriculumApp {
         await this.loadOthersFiles();
         
         if (this.currentImageSet.length > 0) {
-            this.loadImageByIndex(0);
+            this.preloadImageSet(this.currentImageSet);
+            
+            await this.loadImageByIndex(0);
         } else {
             this.hideImageLoading();
         }
@@ -223,10 +252,10 @@ class CurriculumApp {
         const images = [];
         
         const patterns = [
-            `ce-sem${semester}.png`,
-            `ce-sem${semester}-1.png`,
-            `ce-sem${semester}-2.png`,
-            `ce-sem${semester}-3.png`,
+            `${stream.toLowerCase()}-sem${semester}.webp`,
+            `${stream.toLowerCase()}-sem${semester}-1.webp`,
+            `${stream.toLowerCase()}-sem${semester}-2.webp`,
+            `${stream.toLowerCase()}-sem${semester}-3.webp`,
         ];
         
         for (const pattern of patterns) {
@@ -250,7 +279,7 @@ class CurriculumApp {
             return;
         }
         
-        const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+        const imageExtensions = ['webp'];
         const commonFileNames = [
             'elective', 'iks', 'core elective', 'open elective', 'lab', 'theory', 'practical',
             'syllabus', 'schedule', 'timetable', 'curriculum', 'course', 'subject'
@@ -266,7 +295,7 @@ class CurriculumApp {
                 
                 if (await this.imageExists(imagePath)) {
                     const displayName = this.formatOtherFileName(fileName);
-                    const value = fileName.replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').toLowerCase();
+                    const value = fileName.replace(/\.(webp)$/i, '').toLowerCase();
                     
                     if (!discoveredFiles.has(value)) {
                         discoveredFiles.add(value);
@@ -296,7 +325,7 @@ class CurriculumApp {
 
     async discoverAdditionalFiles(stream) {
         const files = [];
-        const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+        const imageExtensions = ['webp'];
         
         const additionalPatterns = [
             'IKS', 'ELECTIVE', 'LAB', 'THEORY', 'PRACTICAL', 'SYLLABUS', 'SCHEDULE'
@@ -309,7 +338,7 @@ class CurriculumApp {
                 
                 if (await this.imageExists(imagePath)) {
                     const displayName = this.formatOtherFileName(fileName);
-                    const value = fileName.replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').toLowerCase();
+                    const value = fileName.replace(/\.(webp)$/i, '').toLowerCase();
                     
                     files.push({
                         path: imagePath,
@@ -334,17 +363,18 @@ class CurriculumApp {
     }
 
     formatImageName(fileName) {
-        const match = fileName.match(/ce-sem(\d+)(?:-(\d+))?\.png/);
+        const match = fileName.match(/([a-z]+)-sem(\d+)(?:-(\d+))?\.webp/);
         if (match) {
-            const sem = match[1];
-            const part = match[2];
-            return part ? `Semester ${sem} - Part ${part}` : `Semester ${sem}`;
+            const stream = match[1].toUpperCase();
+            const sem = match[2];
+            const part = match[3];
+            return part ? `${stream} Semester ${sem} - Part ${part}` : `${stream} Semester ${sem}`;
         }
         return fileName;
     }
 
     formatOtherFileName(fileName) {
-        const nameWithoutExtension = fileName.replace(/\.(png|jpg|jpeg|gif|webp)$/i, '');
+        const nameWithoutExtension = fileName.replace(/\.(webp)$/i, '');
         
         return nameWithoutExtension
             .split(/[-_\s]+/) 
@@ -360,37 +390,184 @@ class CurriculumApp {
             .join(' ');
     }
 
-    loadImageByIndex(index) {
-        if (index >= 0 && index < this.currentImageSet.length) {
-            this.currentImageIndex = index;
-            const imageInfo = this.currentImageSet[index];
-            this.showImageLoading();
+    async preloadImage(imagePath) {
+        if (this.imageCache.has(imagePath)) {
+            return this.imageCache.get(imagePath);
+        }
+
+        return new Promise((resolve, reject) => {
+            const img = new Image();
             
-            const image = document.getElementById('curriculum-image');
-            image.src = imageInfo.path;
+            img.onload = () => {
+                this.imageCache.set(imagePath, img);
+                resolve(img);
+            };
             
-            this.updateViewerHeaderInfo(imageInfo.name, `Civil Engineering - ${this.selections.batch}`);
-            
-            this.isViewingAdditionalFile = false;
-            this.updateNavigationControls();
-            
-            this.resetImageTransform();
-            this.updateImageNavigation();
+            img.onerror = () => {
+                reject(new Error(`Failed to load image: ${imagePath}`));
+            };
+
+            img.crossOrigin = 'anonymous';
+            img.src = imagePath;
+        });
+    }
+
+    async preloadImageSet(imageSet) {
+        if (this.isPreloading) return;
+        
+        this.isPreloading = true;
+        this.preloadQueue = [...imageSet];
+        
+        for (const imageInfo of imageSet) {
+            try {
+                await this.preloadImage(imageInfo.path);
+                console.log(`Preloaded: ${imageInfo.path}`);
+            } catch (error) {
+                console.warn(`Failed to preload: ${imageInfo.path}`, error);
+            }
+        }
+        
+        this.isPreloading = false;
+        this.preloadQueue = [];
+    }
+
+    showImageLoadingWithProgress() {
+        const loadingElement = document.getElementById('image-loading');
+        const progressBar = document.getElementById('loading-progress');
+        const progressText = document.getElementById('loading-text');
+        
+        loadingElement.classList.add('active');
+        this.currentLoadProgress = 0;
+        
+        this.loadProgressInterval = setInterval(() => {
+            if (this.currentLoadProgress < 90) {
+                this.currentLoadProgress += Math.random() * 15;
+                this.updateLoadingProgress(this.currentLoadProgress);
+            }
+        }, 100);
+    }
+
+    updateLoadingProgress(progress) {
+        const progressBar = document.getElementById('loading-progress');
+        const progressText = document.getElementById('loading-text');
+        
+        if (progressBar) {
+            progressBar.style.width = `${Math.min(progress, 100)}%`;
+        }
+        
+        if (progressText) {
+            progressText.textContent = `Loading... ${Math.round(progress)}%`;
         }
     }
 
-    loadOtherFile(fileInfo) {
+    hideImageLoading() {
+        const loadingElement = document.getElementById('image-loading');
+        const progressBar = document.getElementById('loading-progress');
+        const progressText = document.getElementById('loading-text');
+        
+        if (this.loadProgressInterval) {
+            clearInterval(this.loadProgressInterval);
+            this.loadProgressInterval = null;
+        }
+        
+        this.updateLoadingProgress(100);
+        
+        setTimeout(() => {
+            loadingElement.classList.remove('active');
+            if (progressBar) progressBar.style.width = '0%';
+            if (progressText) progressText.textContent = 'Loading...';
+        }, 300);
+    }
+
+    async loadImageWithCache(imagePath) {
+        try {
+            if (this.imageCache.has(imagePath)) {
+                return this.imageCache.get(imagePath);
+            }
+
+            this.showImageLoadingWithProgress();
+            
+            const img = await this.preloadImage(imagePath);
+            
+            this.currentLoadProgress = 100;
+            this.updateLoadingProgress(100);
+            
+            setTimeout(() => {
+                this.hideImageLoading();
+            }, 200);
+            
+            return img;
+        } catch (error) {
+            this.hideImageLoading();
+            throw error;
+        }
+    }
+
+    async loadImageByIndex(index) {
+        if (index >= 0 && index < this.currentImageSet.length) {
+            this.currentImageIndex = index;
+            const imageInfo = this.currentImageSet[index];
+            
+            const image = document.getElementById('curriculum-image');
+            
+            try {
+                await this.loadImageWithCache(imageInfo.path);
+                image.src = imageInfo.path;
+                
+                this.updateViewerHeaderInfo(imageInfo.name, `${this.selections.stream} - ${this.selections.batch}`);
+                
+                this.isViewingAdditionalFile = false;
+                this.updateNavigationControls();
+                
+                this.resetImageTransform();
+                this.updateImageNavigation();
+                
+                this.preloadAdjacentImages(index);
+                
+            } catch (error) {
+                console.error('Failed to load image:', error);
+                this.hideImageLoading();
+            }
+        }
+    }
+
+    async preloadAdjacentImages(currentIndex) {
+        const imagesToPreload = [];
+        
+        if (currentIndex + 1 < this.currentImageSet.length) {
+            imagesToPreload.push(this.currentImageSet[currentIndex + 1]);
+        }
+        
+        if (currentIndex - 1 >= 0) {
+            imagesToPreload.push(this.currentImageSet[currentIndex - 1]);
+        }
+        
+        if (imagesToPreload.length > 0) {
+            setTimeout(() => {
+                this.preloadImageSet(imagesToPreload);
+            }, 1000);
+        }
+    }
+
+    async loadOtherFile(fileInfo) {
         this.previousCurriculumIndex = this.currentImageIndex;
-        this.showImageLoading();
+        
         const image = document.getElementById('curriculum-image');
-        image.src = fileInfo.path;
         
-        this.updateViewerHeaderInfo(fileInfo.name, 'Additional Resource');
-        
-        this.isViewingAdditionalFile = true;
-        this.updateNavigationControls();
-        
-        this.resetImageTransform();
+        try {
+            await this.loadImageWithCache(fileInfo.path);
+            image.src = fileInfo.path;
+            
+            this.updateViewerHeaderInfo(fileInfo.name, 'Additional Resource');
+            
+            this.isViewingAdditionalFile = true;
+            this.updateNavigationControls();
+            
+            this.resetImageTransform();
+        } catch (error) {
+            console.error('Failed to load other file:', error);
+            this.hideImageLoading();
+        }
     }
 
     updateNavigationControls() {
@@ -684,7 +861,8 @@ class CurriculumApp {
             currentSection: this.currentSection,
             selections: this.selections,
             imageIndex: this.currentImageIndex,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            cachedImages: Array.from(this.imageCache.keys())
         };
         localStorage.setItem('iterCurriculumState', JSON.stringify(state));
     }
@@ -704,6 +882,16 @@ class CurriculumApp {
 
             this.selections = state.selections || { batch: '', stream: '', semester: '' };
             this.currentImageIndex = state.imageIndex || 0;
+            
+            if (state.cachedImages && Array.isArray(state.cachedImages)) {
+                console.log(`Restoring ${state.cachedImages.length} cached images`);
+                setTimeout(() => {
+                    state.cachedImages.forEach(imagePath => {
+                        this.preloadImage(imagePath).catch(() => {
+                        });
+                    });
+                }, 1000);
+            }
             
             const oneTimeIndicator = document.getElementById('one-time-process-indicator');
             if (this.selections.batch && this.selections.stream && this.selections.semester) {
@@ -757,6 +945,27 @@ class CurriculumApp {
         this.isViewingAdditionalFile = false;
         if (this.currentImageSet.length > 0 && this.previousCurriculumIndex < this.currentImageSet.length) {
             this.loadImageByIndex(this.previousCurriculumIndex);
+        }
+    }
+
+    optimizeImageLoading() {
+        if ('connection' in navigator) {
+            const connection = navigator.connection;
+            if (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g') {
+                this.preloadQueue = this.preloadQueue.slice(0, 2);
+            }
+        }
+    }
+
+    clearOldCache() {
+        const maxCacheSize = 50;
+        if (this.imageCache.size > maxCacheSize) {
+            const entries = Array.from(this.imageCache.entries());
+            const toDelete = entries.slice(0, entries.length - maxCacheSize);
+            toDelete.forEach(([key]) => {
+                this.imageCache.delete(key);
+            });
+            console.log(`Cleared ${toDelete.length} old cached images`);
         }
     }
 }

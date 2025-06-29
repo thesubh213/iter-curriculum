@@ -1,0 +1,27 @@
+{
+    "name": "ITER Curriculum",
+    "short_name": "ITER Curriculum",
+    "description": "Interactive curriculum viewer for ITER students",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#faf9f7",
+    "theme_color": "#8b7d6b",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["education", "productivity"],
+    "lang": "en",
+    "dir": "ltr"
+} 
