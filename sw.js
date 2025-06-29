@@ -1,11 +1,12 @@
-const CACHE_NAME = 'iter-curriculum-v1';
-const IMAGE_CACHE_NAME = 'iter-images-v1';
+const CACHE_NAME = 'iter-curriculum-v2';
+const IMAGE_CACHE_NAME = 'iter-images-v2';
 
 const STATIC_FILES = [
     '/',
     '/index.html',
     '/style.css',
-    '/script.js'
+    '/script.js',
+    '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -13,7 +14,9 @@ self.addEventListener('install', (event) => {
         caches.open(CACHE_NAME)
             .then((cache) => {
                 console.log('Caching static files');
-                return cache.addAll(STATIC_FILES);
+                return cache.addAll(STATIC_FILES).catch(error => {
+                    console.warn('Some files failed to cache:', error);
+                });
             })
     );
 });
@@ -45,7 +48,12 @@ self.addEventListener('fetch', (event) => {
         event.respondWith(
             caches.match(event.request)
                 .then((response) => {
-                    return response || fetch(event.request);
+                    return response || fetch(event.request).catch(() => {
+                        if (event.request.destination === 'document') {
+                            return caches.match('/index.html');
+                        }
+                        return new Response('Not found', { status: 404 });
+                    });
                 })
         );
     }
@@ -70,7 +78,11 @@ async function handleImageRequest(request) {
         return networkResponse;
     } catch (error) {
         console.error('Failed to fetch image:', error);
-        throw error;
+        // Return a placeholder response instead of throwing
+        return new Response('Image not available', { 
+            status: 404,
+            headers: { 'Content-Type': 'text/plain' }
+        });
     }
 }
 

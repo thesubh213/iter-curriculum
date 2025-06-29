@@ -29,6 +29,10 @@ class CurriculumApp {
         this.lastTapTime = 0;
         this.lastTapPosition = { x: 0, y: 0 };
         
+        this.isFirstLoad = true;
+        this.lastViewedImagePath = '';
+        this.isLoadingFromState = false;
+        
         this.init();
     }
 
@@ -63,6 +67,9 @@ class CurriculumApp {
         document.getElementById('batch-select').addEventListener('change', (e) => this.handleBatchChange(e.target.value));
         document.getElementById('stream-select').addEventListener('change', (e) => this.handleStreamChange(e.target.value));
         document.getElementById('semester-select').addEventListener('change', (e) => this.handleSemesterChange(e.target.value));
+
+        document.getElementById('back-to-batch').addEventListener('click', () => this.goBackToBatch());
+        document.getElementById('back-to-stream').addEventListener('click', () => this.goBackToStream());
 
         document.getElementById('hamburger').addEventListener('click', () => this.toggleOverlay());
         document.getElementById('overlay').addEventListener('click', (e) => {
@@ -164,10 +171,10 @@ class CurriculumApp {
                 this.zoomImageAtPoint(zoomFactor, e.clientX - centerX, e.clientY - centerY);
             });
 
-            imageViewer.addEventListener('touchstart', (e) => this.handleTouchStart(e));
-            imageViewer.addEventListener('touchmove', (e) => this.handleTouchMove(e));
-            imageViewer.addEventListener('touchend', (e) => this.handleTouchEnd(e));
-            imageViewer.addEventListener('touchcancel', (e) => this.handleTouchEnd(e));
+            imageViewer.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+            imageViewer.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+            imageViewer.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false });
+            imageViewer.addEventListener('touchcancel', (e) => this.handleTouchEnd(e), { passive: false });
             
             imageViewer.addEventListener('gesturestart', (e) => e.preventDefault());
             imageViewer.addEventListener('gesturechange', (e) => e.preventDefault());
@@ -196,11 +203,33 @@ class CurriculumApp {
         this.showSection('semester-section');
     }
 
+    goBackToBatch() {
+        this.selections.stream = '';
+        this.selections.semester = '';
+        this.saveState();
+        
+        document.getElementById('stream-select').value = '';
+        document.getElementById('semester-select').value = '';
+        
+        this.showSection('batch-section');
+    }
+
+    goBackToStream() {
+        this.selections.semester = '';
+        this.saveState();
+        
+        document.getElementById('semester-select').value = '';
+        
+        this.showSection('stream-section');
+    }
+
     async handleSemesterChange(value) {
         if (!value) return;
 
         this.selections.semester = value;
         this.saveState();
+        
+        this.showImageLoadingWithProgress('Preparing curriculum...');
         
         await this.loadCurriculumImages();
         this.showSection('viewer-section');
@@ -264,33 +293,41 @@ class CurriculumApp {
     async loadCurriculumImages() {
         this.showImageLoadingWithProgress('Discovering curriculum images...');
         
-        const { stream, semester } = this.selections;
-        this.currentImageSet = await this.discoverSemesterImages(semester);
-        this.currentImageIndex = 0;
-        
-        this.updateLoadingProgress(30);
-        this.showImageLoadingWithProgress('Loading additional files...');
-        
-        await this.loadOthersFiles();
-        
-        this.updateLoadingProgress(60);
-        
-        if (this.currentImageSet.length > 0) {
-            this.showImageLoadingWithProgress('Preloading images for smooth navigation...');
-            this.preloadImageSet(this.currentImageSet);
+        try {
+            const { stream, semester } = this.selections;
+            this.currentImageSet = await this.discoverSemesterImages(semester);
+            this.currentImageIndex = 0;
             
-            this.updateLoadingProgress(80);
-            this.showImageLoadingWithProgress('Loading current image...');
+            this.updateLoadingProgress(30);
+            this.showImageLoadingWithProgress('Loading additional files...');
             
-            await this.loadImageByIndex(0);
-        } else {
-            this.showImageLoadingWithProgress('No images found for this selection');
+            await this.loadOthersFiles();
+            
+            this.updateLoadingProgress(60);
+            
+            if (this.currentImageSet.length > 0) {
+                this.showImageLoadingWithProgress('Preloading images for smooth navigation...');
+                this.preloadImageSet(this.currentImageSet);
+                
+                this.updateLoadingProgress(80);
+                this.showImageLoadingWithProgress('Loading current image...');
+                
+                await this.loadImageByIndex(0);
+            } else {
+                this.showImageLoadingWithProgress('No images found for this selection');
+                setTimeout(() => {
+                    this.hideImageLoading();
+                }, 1000);
+            }
+            
+            this.updateImageNavigation();
+        } catch (error) {
+            console.error('Error loading curriculum images:', error);
+            this.showImageLoadingWithProgress('Error loading curriculum');
             setTimeout(() => {
                 this.hideImageLoading();
-            }, 1000);
+            }, 2000);
         }
-        
-        this.updateImageNavigation();
     }
 
     async discoverSemesterImages(semester) {
@@ -553,11 +590,26 @@ class CurriculumApp {
             
             return img;
         } catch (error) {
+            console.error('Failed to load image:', error);
             this.showImageLoadingWithProgress('Failed to load image');
             setTimeout(() => {
                 this.hideImageLoading();
             }, 1000);
             throw error;
+        }
+    }
+
+    async loadImageWithRetry(imagePath, maxRetries = 3) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return await this.loadImageWithCache(imagePath);
+            } catch (error) {
+                console.warn(`Attempt ${attempt} failed for ${imagePath}:`, error);
+                if (attempt === maxRetries) {
+                    throw error;
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
         }
     }
 
@@ -569,7 +621,7 @@ class CurriculumApp {
             const image = document.getElementById('curriculum-image');
             
             try {
-                await this.loadImageWithCache(imageInfo.path);
+                await this.loadImageWithRetry(imageInfo.path);
                 image.src = imageInfo.path;
                 
                 this.updateViewerHeaderInfo(imageInfo.name, `${this.selections.stream} - ${this.selections.batch}`);
@@ -582,6 +634,7 @@ class CurriculumApp {
                 
                 this.preloadAdjacentImages(index);
                 
+                this.lastViewedImagePath = imageInfo.path;
                 this.saveState();
                 
             } catch (error) {
@@ -615,7 +668,7 @@ class CurriculumApp {
         const image = document.getElementById('curriculum-image');
         
         try {
-            await this.loadImageWithCache(fileInfo.path);
+            await this.loadImageWithRetry(fileInfo.path);
             image.src = fileInfo.path;
             
             this.updateViewerHeaderInfo(fileInfo.name, 'Additional Resource');
@@ -624,6 +677,9 @@ class CurriculumApp {
             this.updateNavigationControls();
             
             this.resetImageTransform();
+            
+            this.lastViewedImagePath = fileInfo.path;
+            this.saveState();
         } catch (error) {
             console.error('Failed to load other file:', error);
             this.hideImageLoading();
@@ -964,7 +1020,7 @@ class CurriculumApp {
         document.getElementById('overlay-semester').value = this.selections.semester;
     }
 
-    applyOverlayChanges() {
+    async applyOverlayChanges() {
         const newBatch = document.getElementById('overlay-batch').value;
         const newStream = document.getElementById('overlay-stream').value;
         const newSemester = document.getElementById('overlay-semester').value;
@@ -977,16 +1033,23 @@ class CurriculumApp {
             this.selections.batch = newBatch;
             this.resetFromBatch();
             this.updateMainDropdowns();
-            if (newBatch) this.handleBatchChange(newBatch);
+            if (newBatch) {
+                this.showImageLoadingWithProgress('Applying batch changes...');
+                await this.handleBatchChange(newBatch);
+            }
         } else if (streamChanged) {
             this.selections.stream = newStream;
             this.resetFromStream();
             this.updateMainDropdowns();
-            if (newStream) this.handleStreamChange(newStream);
+            if (newStream) {
+                this.showImageLoadingWithProgress('Applying stream changes...');
+                await this.handleStreamChange(newStream);
+            }
         } else if (semesterChanged && newSemester) {
             this.selections.semester = newSemester;
             this.updateMainDropdowns();
-            this.handleSemesterChange(newSemester);
+            this.showImageLoadingWithProgress('Loading new semester...');
+            await this.handleSemesterChange(newSemester);
         }
         
         this.closeOverlay();
@@ -1018,6 +1081,7 @@ class CurriculumApp {
             currentSection: this.currentSection,
             selections: this.selections,
             imageIndex: this.currentImageIndex,
+            lastViewedImagePath: this.lastViewedImagePath,
             timestamp: Date.now(),
             cachedImages: Array.from(this.imageCache.keys())
         };
@@ -1026,7 +1090,10 @@ class CurriculumApp {
 
     loadSavedState() {
         const savedState = localStorage.getItem('iterCurriculumState');
-        if (!savedState) return;
+        if (!savedState) {
+            this.isFirstLoad = true;
+            return;
+        }
 
         try {
             const state = JSON.parse(savedState);
@@ -1034,11 +1101,14 @@ class CurriculumApp {
             
             if (daysSinceLastVisit > 30) {
                 localStorage.removeItem('iterCurriculumState');
+                this.isFirstLoad = true;
                 return;
             }
 
             this.selections = state.selections || { batch: '', stream: '', semester: '' };
             this.currentImageIndex = state.imageIndex || 0;
+            this.lastViewedImagePath = state.lastViewedImagePath || '';
+            this.isLoadingFromState = true;
             
             if (state.cachedImages && Array.isArray(state.cachedImages)) {
                 console.log(`Restoring ${state.cachedImages.length} cached images`);
@@ -1067,6 +1137,7 @@ class CurriculumApp {
         } catch (error) {
             console.error('Error loading saved state:', error);
             localStorage.removeItem('iterCurriculumState');
+            this.isFirstLoad = true;
         }
     }
 
@@ -1075,18 +1146,43 @@ class CurriculumApp {
         document.getElementById('stream-select').value = this.selections.stream;
         document.getElementById('semester-select').value = this.selections.semester;
 
+        if (this.isFirstLoad && !this.selections.batch && !this.selections.stream && !this.selections.semester) {
+            setTimeout(() => {
+                this.showPopup();
+            }, 1000);
+        }
+
         if (this.currentSection === 'viewer-section' && this.selections.batch && this.selections.stream && this.selections.semester) {
-            this.showImageLoadingWithProgress('Restoring your previous session...');
+            if (!this.isFirstLoad) {
+                this.showImageLoadingWithProgress('Restoring your previous session...');
+            }
             
             await this.loadCurriculumImages();
             this.showSection('viewer-section');
             
-            if (this.currentImageIndex > 0 && this.currentImageIndex < this.currentImageSet.length) {
+            if (this.lastViewedImagePath && !this.isFirstLoad) {
+                const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
+                if (imageIndex !== -1) {
+                    this.showImageLoadingWithProgress('Loading your previous image...');
+                    setTimeout(async () => {
+                        await this.loadImageByIndex(imageIndex);
+                    }, 500);
+                } else {
+                    if (this.currentImageIndex > 0 && this.currentImageIndex < this.currentImageSet.length) {
+                        this.showImageLoadingWithProgress('Loading your previous image...');
+                        setTimeout(async () => {
+                            await this.loadImageByIndex(this.currentImageIndex);
+                        }, 500);
+                    }
+                }
+            } else if (this.currentImageIndex > 0 && this.currentImageIndex < this.currentImageSet.length && !this.isFirstLoad) {
                 this.showImageLoadingWithProgress('Loading your previous image...');
                 setTimeout(async () => {
                     await this.loadImageByIndex(this.currentImageIndex);
                 }, 500);
             }
+            
+            this.isFirstLoad = false;
         } else if (this.currentSection !== 'batch-section') {
             this.showSection(this.currentSection);
         }
@@ -1127,6 +1223,14 @@ class CurriculumApp {
             });
             console.log(`Cleared ${toDelete.length} old cached images`);
         }
+    }
+
+    closePopup() {
+        document.getElementById('popup').classList.remove('active');
+    }
+
+    showPopup() {
+        document.getElementById('popup').classList.add('active');
     }
 }
 let app;

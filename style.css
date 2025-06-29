@@ -268,6 +268,7 @@ body {
     position: relative;
     overflow: hidden;
     background-image: none !important;
+    margin-bottom: 0;
 }
 
 .dropdown-container::before {
@@ -360,6 +361,39 @@ body {
     background: var(--white);
     color: var(--text-primary);
     font-weight: 500;
+}
+
+.setup-actions {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.setup-actions .btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-size: 0.95rem;
+    min-width: auto;
+    transition: var(--transition);
+}
+
+.setup-actions .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    transition: var(--transition);
+}
+
+.setup-actions .btn:hover .btn-icon {
+    transform: translateX(-2px);
 }
 
 #viewer-section {
@@ -522,9 +556,11 @@ body {
     border-radius: var(--border-radius-lg);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: var(--shadow-xl);
-    z-index: 1000;
+    z-index: 1001;
     max-width: calc(100vw - 2rem);
     width: auto;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .control-group {
@@ -562,6 +598,9 @@ body {
     align-items: center;
     justify-content: center;
     border: 1px solid rgba(255, 255, 255, 0.3);
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
 }
 
 .control-btn:hover {
@@ -1050,6 +1089,21 @@ body {
         padding: 2rem 1.5rem;
     }
     
+    .setup-actions {
+        margin-top: 1.5rem;
+        gap: 0.75rem;
+    }
+    
+    .setup-actions .btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9rem;
+    }
+    
+    .btn-icon {
+        width: 16px;
+        height: 16px;
+    }
+    
     .overlay-header h2 {
         font-size: 2rem;
     }
@@ -1070,6 +1124,7 @@ body {
     
     .image-viewer {
         padding-bottom: 160px;
+        touch-action: pan-x pan-y pinch-zoom;
     }
     
     .viewer-controls {
@@ -1081,6 +1136,10 @@ body {
         gap: 0.5rem;
         max-width: none;
         width: auto;
+        visibility: visible !important;
+        opacity: 1 !important;
+        display: flex !important;
+        z-index: 1001;
     }
     
     .control-group {
@@ -1093,6 +1152,14 @@ body {
         width: 44px;
         height: 44px;
         flex-shrink: 0;
+        min-width: 44px;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+    
+    .control-btn:active {
+        transform: scale(0.9);
+        transition: transform 0.1s ease;
     }
     
     .modal-body {
@@ -1125,11 +1192,26 @@ body {
     }
     
     .dropdown-container {
-        padding: 1.5rem 1rem;
+        padding: 2rem 1.5rem;
     }
     
     .dropdown {
         padding: 1rem;
+    }
+    
+    .setup-actions {
+        margin-top: 1.5rem;
+        gap: 0.75rem;
+    }
+    
+    .setup-actions .btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9rem;
+    }
+    
+    .btn-icon {
+        width: 16px;
+        height: 16px;
     }
     
     .image-viewer {
@@ -1142,12 +1224,17 @@ body {
         right: 0.5rem;
         padding: 0.75rem;
         gap: 0.5rem;
+        visibility: visible !important;
+        opacity: 1 !important;
+        display: flex !important;
     }
     
     .control-btn {
         width: 40px;
         height: 40px;
         flex-shrink: 0;
+        min-width: 40px;
+        min-height: 40px;
     }
     
     .control-btn svg {
@@ -1188,18 +1275,22 @@ body {
     }
 }
 
-/* Very small screens */
 @media (max-width: 360px) {
     .viewer-controls {
         bottom: 0.25rem;
         left: 0.25rem;
         right: 0.25rem;
         padding: 0.5rem;
+        visibility: visible !important;
+        opacity: 1 !important;
+        display: flex !important;
     }
     
     .control-btn {
         width: 36px;
         height: 36px;
+        min-width: 36px;
+        min-height: 36px;
     }
     
     .control-btn svg {
@@ -1212,7 +1303,6 @@ body {
     }
 }
 
-/* Landscape orientation on mobile */
 @media (max-height: 500px) and (orientation: landscape) {
     .viewer-controls {
         bottom: 0.25rem;
@@ -1221,6 +1311,9 @@ body {
         padding: 0.5rem;
         flex-direction: row;
         gap: 0.5rem;
+        visibility: visible !important;
+        opacity: 1 !important;
+        display: flex !important;
     }
     
     .control-group {
@@ -1235,6 +1328,8 @@ body {
     .control-btn {
         width: 36px;
         height: 36px;
+        min-width: 36px;
+        min-height: 36px;
     }
 }
 
@@ -1298,5 +1393,92 @@ body {
         padding: 0.5rem 0.75rem;
         font-size: 0.85rem;
         gap: 0.25rem;
+    }
+}
+
+.setup-actions .btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-size: 0.95rem;
+    min-width: auto;
+    transition: var(--transition);
+}
+
+.setup-actions .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    transition: var(--transition);
+}
+
+.setup-actions .btn:hover .btn-icon {
+    transform: translateX(-2px);
+}
+
+.dropdown-container {
+    background: var(--white);
+    backdrop-filter: blur(20px);
+    padding: 3rem 2rem;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-xl);
+    text-align: center;
+    transition: var(--transition);
+    border: 1px solid var(--glass-border);
+    position: relative;
+    overflow: hidden;
+    background-image: none !important;
+    margin-bottom: 0;
+}
+
+@media (max-width: 480px) {
+    .dropdown-container {
+        padding: 2rem 1.5rem;
+    }
+    
+    .setup-actions {
+        margin-top: 1.5rem;
+    }
+    
+    .setup-actions .btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9rem;
+    }
+}
+
+.viewer-controls {
+    z-index: 1001;
+}
+
+.overlay {
+    z-index: 1000;
+}
+
+.modal {
+    z-index: 3000;
+}
+
+.popup {
+    z-index: 2000;
+}
+
+.btn:focus,
+.control-btn:focus,
+.dropdown:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+    .btn,
+    .control-btn {
+        min-height: 44px;
+        min-width: 44px;
     }
 }
