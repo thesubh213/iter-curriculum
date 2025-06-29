@@ -35,6 +35,7 @@ class CurriculumApp {
         this.lastViewedImagePath = '';
         this.isLoadingFromState = false;
         this.isPageReload = this.detectPageReload();
+        this.isLoadingPopupActive = false;
         
         this.init();
     }
@@ -45,7 +46,7 @@ class CurriculumApp {
         this.loadSavedState();
         
         if (this.isPageReload && this.selections.batch && this.selections.stream && this.selections.semester) {
-            this.showImageLoadingWithProgress('Restoring your session...');
+            this.showLoadingPopup('Restoring your session...');
         }
         
         this.updateUI();
@@ -237,6 +238,8 @@ class CurriculumApp {
         this.selections.semester = value;
         this.saveState();
         
+        this.showLoadingPopup('Preparing curriculum...');
+        
         this.setupLoadingSteps([
             { name: 'Preparing curriculum...', weight: 25 },
             { name: 'Discovering curriculum images...', weight: 25 },
@@ -366,9 +369,9 @@ class CurriculumApp {
                 this.updateLoadingStep(3);
                 await this.loadImageByIndex(0);
             } else {
-                this.showImageLoadingWithProgress('No images found for this selection');
+                this.showLoadingPopup('No images found for this selection');
                 setTimeout(() => {
-                    this.hideImageLoading();
+                    this.hideLoadingPopup();
                 }, 1000);
             }
             
@@ -377,11 +380,15 @@ class CurriculumApp {
             this.loadingSteps = [];
             this.currentLoadingStep = 0;
             
+            setTimeout(() => {
+                this.hideLoadingPopup();
+            }, 500);
+            
         } catch (error) {
             console.error('Error loading curriculum images:', error);
-            this.showImageLoadingWithProgress('Error loading curriculum');
+            this.showLoadingPopup('Error loading curriculum');
             setTimeout(() => {
-                this.hideImageLoading();
+                this.hideLoadingPopup();
             }, 2000);
             
             this.loadingSteps = [];
@@ -595,7 +602,7 @@ class CurriculumApp {
         if (stepIndex < this.loadingSteps.length) {
             this.currentLoadingStep = stepIndex;
             const step = this.loadingSteps[stepIndex];
-            this.showImageLoadingWithProgress(step.name);
+            this.showLoadingPopup(step.name);
         }
     }
 
@@ -608,11 +615,11 @@ class CurriculumApp {
             .reduce((sum, step) => sum + step.weight, 0);
         
         const totalProgress = previousStepsWeight + (stepWeight * stepProgress / 100);
-        this.updateLoadingProgress(totalProgress);
+        this.updateLoadingPopupProgress(totalProgress);
         
         if (stepProgress > 0 && stepProgress < 100) {
             setTimeout(() => {
-                this.updateLoadingProgress(totalProgress + 1);
+                this.updateLoadingPopupProgress(totalProgress + 1);
             }, 50);
         }
     }
@@ -632,7 +639,6 @@ class CurriculumApp {
             this.loadProgressInterval = null;
         }
         
-        // Ensure the loading element is visible
         loadingElement.style.display = 'block';
         loadingElement.style.visibility = 'visible';
         loadingElement.style.opacity = '1';
@@ -674,38 +680,13 @@ class CurriculumApp {
     async loadImageWithCache(imagePath) {
         try {
             if (this.imageCache.has(imagePath)) {
-                if (this.loadingSteps.length === 0) {
-                    this.showImageLoadingWithProgress('Loading from cache...');
-                    this.updateLoadingProgress(100);
-                    setTimeout(() => {
-                        this.hideImageLoading();
-                    }, 200);
-                }
                 return this.imageCache.get(imagePath);
-            }
-
-            if (this.loadingSteps.length === 0) {
-                this.showImageLoadingWithProgress('Downloading image...');
             }
             
             const img = await this.preloadImage(imagePath);
-            
-            if (this.loadingSteps.length === 0) {
-                this.updateLoadingProgress(100);
-                setTimeout(() => {
-                    this.hideImageLoading();
-                }, 200);
-            }
-            
             return img;
         } catch (error) {
             console.error('Failed to load image:', error);
-            if (this.loadingSteps.length === 0) {
-                this.showImageLoadingWithProgress('Failed to load image');
-                setTimeout(() => {
-                    this.hideImageLoading();
-                }, 1000);
-            }
             throw error;
         }
     }
@@ -748,15 +729,8 @@ class CurriculumApp {
                 this.lastViewedImagePath = imageInfo.path;
                 this.saveState();
                 
-                if (this.loadingSteps.length === 0) {
-                    this.hideImageLoading();
-                }
-                
             } catch (error) {
                 console.error('Failed to load image:', error);
-                if (this.loadingSteps.length === 0) {
-                    this.hideImageLoading();
-                }
             }
         }
     }
@@ -785,7 +759,7 @@ class CurriculumApp {
         const image = document.getElementById('curriculum-image');
         
         try {
-            this.showImageLoadingWithProgress(`Loading ${fileInfo.name}...`);
+            this.showLoadingPopup(`Loading ${fileInfo.name}...`);
             await this.loadImageWithRetry(fileInfo.path);
             image.src = fileInfo.path;
             
@@ -799,12 +773,14 @@ class CurriculumApp {
             this.lastViewedImagePath = fileInfo.path;
             this.saveState();
             
-            this.hideImageLoading();
+            setTimeout(() => {
+                this.hideLoadingPopup();
+            }, 500);
         } catch (error) {
             console.error('Failed to load other file:', error);
-            this.showImageLoadingWithProgress('Failed to load file');
+            this.showLoadingPopup('Failed to load file');
             setTimeout(() => {
-                this.hideImageLoading();
+                this.hideLoadingPopup();
             }, 1000);
         }
     }
@@ -859,16 +835,22 @@ class CurriculumApp {
     previousImage() {
         console.log('Previous image clicked, current index:', this.currentImageIndex);
         if (this.currentImageIndex > 0) {
-            this.showImageLoadingWithProgress('Loading previous image...');
+            this.showLoadingPopup('Loading previous image...');
             this.loadImageByIndex(this.currentImageIndex - 1);
+            setTimeout(() => {
+                this.hideLoadingPopup();
+            }, 500);
         }
     }
 
     nextImage() {
         console.log('Next image clicked, current index:', this.currentImageIndex);
         if (this.currentImageIndex < this.currentImageSet.length - 1) {
-            this.showImageLoadingWithProgress('Loading next image...');
+            this.showLoadingPopup('Loading next image...');
             this.loadImageByIndex(this.currentImageIndex + 1);
+            setTimeout(() => {
+                this.hideLoadingPopup();
+            }, 500);
         }
     }
 
@@ -1110,14 +1092,6 @@ class CurriculumApp {
         }
     }
 
-    showImageLoading() {
-        document.getElementById('image-loading').classList.add('active');
-    }
-
-    hideImageLoading() {
-        document.getElementById('image-loading').classList.remove('active');
-    }
-
     toggleOverlay() {
         const overlay = document.getElementById('overlay');
         const hamburger = document.getElementById('hamburger');
@@ -1159,6 +1133,7 @@ class CurriculumApp {
             this.resetFromBatch();
             this.updateMainDropdowns();
             if (newBatch) {
+                this.showLoadingPopup('Applying batch changes...');
                 this.setupLoadingSteps([
                     { name: 'Applying batch changes...', weight: 20 },
                     { name: 'Discovering curriculum images...', weight: 30 },
@@ -1175,6 +1150,7 @@ class CurriculumApp {
             this.resetFromStream();
             this.updateMainDropdowns();
             if (newStream) {
+                this.showLoadingPopup('Applying stream changes...');
                 this.setupLoadingSteps([
                     { name: 'Applying stream changes...', weight: 20 },
                     { name: 'Discovering curriculum images...', weight: 30 },
@@ -1189,6 +1165,7 @@ class CurriculumApp {
         } else if (semesterChanged && newSemester) {
             this.selections.semester = newSemester;
             this.updateMainDropdowns();
+            this.showLoadingPopup('Applying semester changes...');
             this.setupLoadingSteps([
                 { name: 'Applying semester changes...', weight: 20 },
                 { name: 'Discovering curriculum images...', weight: 30 },
@@ -1301,6 +1278,9 @@ class CurriculumApp {
 
         if (this.currentSection === 'viewer-section' && this.selections.batch && this.selections.stream && this.selections.semester) {
             if (this.isPageReload || !this.isFirstLoad) {
+                if (!this.isLoadingPopupActive) {
+                    this.showLoadingPopup('Restoring your previous session...');
+                }
                 this.setupLoadingSteps([
                     { name: 'Restoring your previous session...', weight: 20 },
                     { name: 'Discovering curriculum images...', weight: 25 },
@@ -1392,7 +1372,7 @@ class CurriculumApp {
 
     detectPageReload() {
         if (performance && performance.navigation) {
-            return performance.navigation.type === 1; // TYPE_RELOAD = 1
+            return performance.navigation.type === 1; 
         }
         
         const hasCachedData = localStorage.getItem('iterCurriculumState') !== null;
@@ -1408,6 +1388,81 @@ class CurriculumApp {
             sessionStorage.setItem(sessionKey, newSession);
             return false;
         }
+    }
+
+    showLoadingPopup(message = 'Loading...') {
+        this.isLoadingPopupActive = true;
+        const loadingElement = document.getElementById('image-loading');
+        const progressText = document.getElementById('loading-text');
+        const progressBar = document.getElementById('loading-progress');
+        
+        if (loadingElement) {
+            loadingElement.classList.add('active');
+            loadingElement.style.display = 'block';
+            loadingElement.style.visibility = 'visible';
+            loadingElement.style.opacity = '1';
+            loadingElement.style.zIndex = '9999';
+        }
+        
+        if (progressText) {
+            progressText.textContent = message;
+        }
+        
+        if (progressBar) {
+            progressBar.style.width = '0%';
+        }
+        
+        if (this.loadProgressInterval) {
+            clearInterval(this.loadProgressInterval);
+            this.loadProgressInterval = null;
+        }
+        
+        console.log('Loading popup shown:', message);
+    }
+
+    updateLoadingPopupProgress(progress) {
+        const progressBar = document.getElementById('loading-progress');
+        const progressText = document.getElementById('loading-text');
+        
+        if (progressBar) {
+            progressBar.style.width = `${Math.min(progress, 100)}%`;
+        }
+        
+        if (progressText && !progressText.textContent.includes('%')) {
+            const currentText = progressText.textContent.replace(/\s+\d+%$/, '');
+            progressText.textContent = `${currentText} ${Math.round(progress)}%`;
+        }
+    }
+
+    hideLoadingPopup() {
+        this.isLoadingPopupActive = false;
+        const loadingElement = document.getElementById('image-loading');
+        const progressBar = document.getElementById('loading-progress');
+        const progressText = document.getElementById('loading-text');
+        
+        if (this.loadProgressInterval) {
+            clearInterval(this.loadProgressInterval);
+            this.loadProgressInterval = null;
+        }
+        
+        if (progressBar) {
+            progressBar.style.width = '100%';
+        }
+        
+        setTimeout(() => {
+            if (loadingElement) {
+                loadingElement.classList.remove('active');
+                loadingElement.style.display = 'none';
+            }
+            if (progressBar) {
+                progressBar.style.width = '0%';
+            }
+            if (progressText) {
+                progressText.textContent = 'Loading...';
+            }
+        }, 300);
+        
+        console.log('Loading popup hidden');
     }
 }
 let app;
