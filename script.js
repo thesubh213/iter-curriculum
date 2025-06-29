@@ -22,6 +22,13 @@ class CurriculumApp {
         this.currentLoadProgress = 0;
         this.loadProgressInterval = null;
         
+        this.isPinching = false;
+        this.lastPinchDistance = null;
+        this.lastPinchCenter = null;
+        
+        this.lastTapTime = 0;
+        this.lastTapPosition = { x: 0, y: 0 };
+        
         this.init();
     }
 
@@ -113,42 +120,64 @@ class CurriculumApp {
         const imageViewer = document.getElementById('image-viewer');
         const image = document.getElementById('curriculum-image');
 
-        document.getElementById('zoom-in').addEventListener('click', () => this.zoomImage(1.2));
-        document.getElementById('zoom-out').addEventListener('click', () => this.zoomImage(0.8));
-        document.getElementById('reset-zoom').addEventListener('click', () => this.resetImageTransform());
+        const bindButtonEvent = (id, handler) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('click', handler);
+                console.log(`Bound event to ${id}`);
+            } else {
+                console.warn(`Button ${id} not found`);
+            }
+        };
+
+        bindButtonEvent('zoom-in', () => this.zoomImage(1.2));
+        bindButtonEvent('zoom-out', () => this.zoomImage(0.8));
+        bindButtonEvent('reset-zoom', () => this.resetImageTransform());
+        bindButtonEvent('prev-image', () => this.previousImage());
+        bindButtonEvent('next-image', () => this.nextImage());
+        bindButtonEvent('others-btn', () => this.showOthersModal());
+        bindButtonEvent('fullscreen-btn', () => this.toggleFullscreen());
+        bindButtonEvent('back-to-curriculum', () => this.backToCurriculum());
         
-        document.getElementById('prev-image').addEventListener('click', () => this.previousImage());
-        document.getElementById('next-image').addEventListener('click', () => this.nextImage());
-        document.getElementById('others-btn').addEventListener('click', () => this.showOthersModal());
-        document.getElementById('fullscreen-btn').addEventListener('click', () => this.toggleFullscreen());
-        document.getElementById('back-to-curriculum').addEventListener('click', () => this.backToCurriculum());
+        bindButtonEvent('others-modal-close', () => this.closeOthersModal());
         
-        document.getElementById('others-modal-close').addEventListener('click', () => this.closeOthersModal());
-        document.getElementById('others-modal').addEventListener('click', (e) => {
-            if (e.target === document.getElementById('others-modal')) this.closeOthersModal();
-        });
+        const othersModal = document.getElementById('others-modal');
+        if (othersModal) {
+            othersModal.addEventListener('click', (e) => {
+                if (e.target === othersModal) this.closeOthersModal();
+            });
+        }
 
-        imageViewer.addEventListener('mousedown', (e) => this.startImageDrag(e));
-        imageViewer.addEventListener('mousemove', (e) => this.dragImage(e));
-        imageViewer.addEventListener('mouseup', () => this.endImageDrag());
-        imageViewer.addEventListener('mouseleave', () => this.endImageDrag());
-        imageViewer.addEventListener('contextmenu', (e) => e.preventDefault());
+        if (imageViewer) {
+            imageViewer.addEventListener('mousedown', (e) => this.startImageDrag(e));
+            imageViewer.addEventListener('mousemove', (e) => this.dragImage(e));
+            imageViewer.addEventListener('mouseup', () => this.endImageDrag());
+            imageViewer.addEventListener('mouseleave', () => this.endImageDrag());
+            imageViewer.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        imageViewer.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const rect = imageViewer.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-            this.zoomImageAtPoint(zoomFactor, e.clientX - centerX, e.clientY - centerY);
-        });
+            imageViewer.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const rect = imageViewer.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                this.zoomImageAtPoint(zoomFactor, e.clientX - centerX, e.clientY - centerY);
+            });
 
-        imageViewer.addEventListener('touchstart', (e) => this.handleTouchStart(e));
-        imageViewer.addEventListener('touchmove', (e) => this.handleTouchMove(e));
-        imageViewer.addEventListener('touchend', () => this.endImageDrag());
+            imageViewer.addEventListener('touchstart', (e) => this.handleTouchStart(e));
+            imageViewer.addEventListener('touchmove', (e) => this.handleTouchMove(e));
+            imageViewer.addEventListener('touchend', (e) => this.handleTouchEnd(e));
+            imageViewer.addEventListener('touchcancel', (e) => this.handleTouchEnd(e));
+            
+            imageViewer.addEventListener('gesturestart', (e) => e.preventDefault());
+            imageViewer.addEventListener('gesturechange', (e) => e.preventDefault());
+            imageViewer.addEventListener('gestureend', (e) => e.preventDefault());
+        }
 
-        image.addEventListener('load', () => this.hideImageLoading());
-        image.addEventListener('error', () => this.hideImageLoading());
+        if (image) {
+            image.addEventListener('load', () => this.hideImageLoading());
+            image.addEventListener('error', () => this.hideImageLoading());
+        }
     }
 
     handleBatchChange(value) {
@@ -208,9 +237,14 @@ class CurriculumApp {
                 viewerHeaderInfo.style.display = 'flex';
                 headerOptions.style.display = 'flex';
                 oneTimeIndicator.classList.add('hidden');
+                
+                setTimeout(() => {
+                    this.bindImageEvents();
+                }, 100);
+                
                 if (this.currentImageSet.length > 0 && this.currentImageIndex < this.currentImageSet.length) {
                     const imageInfo = this.currentImageSet[this.currentImageIndex];
-                    this.updateViewerHeaderInfo(imageInfo.name, `Civil Engineering - ${this.selections.batch}`);
+                    this.updateViewerHeaderInfo(imageInfo.name, `${this.selections.stream} - ${this.selections.batch}`);
                 }
             } else {
                 mainTitle.style.display = '';
@@ -228,20 +262,32 @@ class CurriculumApp {
     }
 
     async loadCurriculumImages() {
-        this.showImageLoadingWithProgress();
+        this.showImageLoadingWithProgress('Discovering curriculum images...');
         
         const { stream, semester } = this.selections;
         this.currentImageSet = await this.discoverSemesterImages(semester);
         this.currentImageIndex = 0;
         
+        this.updateLoadingProgress(30);
+        this.showImageLoadingWithProgress('Loading additional files...');
+        
         await this.loadOthersFiles();
         
+        this.updateLoadingProgress(60);
+        
         if (this.currentImageSet.length > 0) {
+            this.showImageLoadingWithProgress('Preloading images for smooth navigation...');
             this.preloadImageSet(this.currentImageSet);
+            
+            this.updateLoadingProgress(80);
+            this.showImageLoadingWithProgress('Loading current image...');
             
             await this.loadImageByIndex(0);
         } else {
-            this.hideImageLoading();
+            this.showImageLoadingWithProgress('No images found for this selection');
+            setTimeout(() => {
+                this.hideImageLoading();
+            }, 1000);
         }
         
         this.updateImageNavigation();
@@ -431,13 +477,17 @@ class CurriculumApp {
         this.preloadQueue = [];
     }
 
-    showImageLoadingWithProgress() {
+    showImageLoadingWithProgress(message = 'Loading...') {
         const loadingElement = document.getElementById('image-loading');
         const progressBar = document.getElementById('loading-progress');
         const progressText = document.getElementById('loading-text');
         
         loadingElement.classList.add('active');
         this.currentLoadProgress = 0;
+        
+        if (progressText) {
+            progressText.textContent = message;
+        }
         
         this.loadProgressInterval = setInterval(() => {
             if (this.currentLoadProgress < 90) {
@@ -455,8 +505,9 @@ class CurriculumApp {
             progressBar.style.width = `${Math.min(progress, 100)}%`;
         }
         
-        if (progressText) {
-            progressText.textContent = `Loading... ${Math.round(progress)}%`;
+        if (progressText && !progressText.textContent.includes('%')) {
+            const currentText = progressText.textContent.replace(/\s+\d+%$/, '');
+            progressText.textContent = `${currentText} ${Math.round(progress)}%`;
         }
     }
 
@@ -482,10 +533,14 @@ class CurriculumApp {
     async loadImageWithCache(imagePath) {
         try {
             if (this.imageCache.has(imagePath)) {
+                this.showImageLoadingWithProgress('Loading from cache...');
+                setTimeout(() => {
+                    this.hideImageLoading();
+                }, 200);
                 return this.imageCache.get(imagePath);
             }
 
-            this.showImageLoadingWithProgress();
+            this.showImageLoadingWithProgress('Downloading image...');
             
             const img = await this.preloadImage(imagePath);
             
@@ -498,7 +553,10 @@ class CurriculumApp {
             
             return img;
         } catch (error) {
-            this.hideImageLoading();
+            this.showImageLoadingWithProgress('Failed to load image');
+            setTimeout(() => {
+                this.hideImageLoading();
+            }, 1000);
             throw error;
         }
     }
@@ -523,6 +581,8 @@ class CurriculumApp {
                 this.updateImageNavigation();
                 
                 this.preloadAdjacentImages(index);
+                
+                this.saveState();
                 
             } catch (error) {
                 console.error('Failed to load image:', error);
@@ -618,12 +678,14 @@ class CurriculumApp {
     }
 
     previousImage() {
+        console.log('Previous image clicked, current index:', this.currentImageIndex);
         if (this.currentImageIndex > 0) {
             this.loadImageByIndex(this.currentImageIndex - 1);
         }
     }
 
     nextImage() {
+        console.log('Next image clicked, current index:', this.currentImageIndex);
         if (this.currentImageIndex < this.currentImageSet.length - 1) {
             this.loadImageByIndex(this.currentImageIndex + 1);
         }
@@ -663,6 +725,7 @@ class CurriculumApp {
     }
 
     showOthersModal() {
+        console.log('Others modal clicked');
         const modal = document.getElementById('others-modal');
         const modalContent = document.getElementById('others-list');
         
@@ -694,6 +757,7 @@ class CurriculumApp {
     }
 
     zoomImage(factor) {
+        console.log('Zoom clicked, factor:', factor);
         this.imageScale *= factor;
         this.imageScale = Math.max(0.25, Math.min(5, this.imageScale));
         this.updateImageTransform();
@@ -712,6 +776,7 @@ class CurriculumApp {
     }
 
     resetImageTransform() {
+        console.log('Reset zoom clicked');
         this.imageScale = 1;
         this.imagePosition = { x: 0, y: 0 };
         this.updateImageTransform();
@@ -749,21 +814,113 @@ class CurriculumApp {
     }
 
     handleTouchStart(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('Touch start:', e.touches.length, 'touches');
+        
         if (e.touches.length === 1) {
             const touch = e.touches[0];
-            this.startImageDrag({ button: 0, clientX: touch.clientX, clientY: touch.clientY });
+            this.isDragging = true;
+            this.lastMousePosition = { x: touch.clientX, y: touch.clientY };
+            document.getElementById('image-viewer').classList.add('dragging');
+            console.log('Started panning');
+            
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - this.lastTapTime;
+            const tapDistance = Math.sqrt(
+                Math.pow(touch.clientX - this.lastTapPosition.x, 2) + 
+                Math.pow(touch.clientY - this.lastTapPosition.y, 2)
+            );
+            
+            if (tapLength < 300 && tapDistance < 50) {
+                console.log('Double tap detected');
+                if (this.imageScale > 1) {
+                    this.resetImageTransform();
+                } else {
+                    this.zoomImageAtPoint(2, touch.clientX - window.innerWidth / 2, touch.clientY - window.innerHeight / 2);
+                }
+                this.isDragging = false;
+                document.getElementById('image-viewer').classList.remove('dragging');
+            }
+            
+            this.lastTapTime = currentTime;
+            this.lastTapPosition = { x: touch.clientX, y: touch.clientY };
+        } else if (e.touches.length === 2) {
+            this.isPinching = true;
+            this.lastPinchDistance = this.getPinchDistance(e.touches);
+            this.lastPinchCenter = this.getPinchCenter(e.touches);
+            console.log('Started pinch zoom');
         }
     }
 
     handleTouchMove(e) {
         e.preventDefault();
-        if (e.touches.length === 1) {
+        e.stopPropagation();
+        
+        if (e.touches.length === 1 && this.isDragging) {
             const touch = e.touches[0];
             this.dragImage({ clientX: touch.clientX, clientY: touch.clientY });
+        } else if (e.touches.length === 2 && this.isPinching) {
+            this.handlePinchZoom(e.touches);
         }
     }
 
+    handleTouchEnd(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('Touch end:', e.touches.length, 'touches remaining');
+        
+        if (e.touches.length === 0) {
+            this.isDragging = false;
+            this.isPinching = false;
+            document.getElementById('image-viewer').classList.remove('dragging');
+            console.log('All touches ended');
+        } else if (e.touches.length === 1) {
+            this.isPinching = false;
+            const touch = e.touches[0];
+            this.isDragging = true;
+            this.lastMousePosition = { x: touch.clientX, y: touch.clientY };
+            console.log('Switched to panning');
+        }
+    }
+
+    getPinchDistance(touches) {
+        const touch1 = touches[0];
+        const touch2 = touches[1];
+        const dx = touch1.clientX - touch2.clientX;
+        const dy = touch1.clientY - touch2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    getPinchCenter(touches) {
+        const touch1 = touches[0];
+        const touch2 = touches[1];
+        return {
+            x: (touch1.clientX + touch2.clientX) / 2,
+            y: (touch1.clientY + touch2.clientY) / 2
+        };
+    }
+
+    handlePinchZoom(touches) {
+        const currentDistance = this.getPinchDistance(touches);
+        const currentCenter = this.getPinchCenter(touches);
+        
+        if (this.lastPinchDistance && this.lastPinchCenter) {
+            const scaleFactor = currentDistance / this.lastPinchDistance;
+            const centerX = currentCenter.x - window.innerWidth / 2;
+            const centerY = currentCenter.y - window.innerHeight / 2;
+            
+            this.zoomImageAtPoint(scaleFactor, centerX, centerY);
+        }
+        
+        this.lastPinchDistance = currentDistance;
+        this.lastPinchCenter = currentCenter;
+    }
+
     toggleFullscreen() {
+        console.log('Fullscreen clicked');
         const image = document.getElementById('curriculum-image');
         const imageSrc = image.src;
         
@@ -919,14 +1076,17 @@ class CurriculumApp {
         document.getElementById('semester-select').value = this.selections.semester;
 
         if (this.currentSection === 'viewer-section' && this.selections.batch && this.selections.stream && this.selections.semester) {
+            this.showImageLoadingWithProgress('Restoring your previous session...');
+            
             await this.loadCurriculumImages();
             this.showSection('viewer-section');
             
-            setTimeout(() => {
-                if (this.currentImageIndex > 0 && this.currentImageIndex < this.currentImageSet.length) {
-                    this.loadImageByIndex(this.currentImageIndex);
-                }
-            }, 1000);
+            if (this.currentImageIndex > 0 && this.currentImageIndex < this.currentImageSet.length) {
+                this.showImageLoadingWithProgress('Loading your previous image...');
+                setTimeout(async () => {
+                    await this.loadImageByIndex(this.currentImageIndex);
+                }, 500);
+            }
         } else if (this.currentSection !== 'batch-section') {
             this.showSection(this.currentSection);
         }
