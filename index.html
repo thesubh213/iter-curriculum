@@ -1,1 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ITER Curriculum</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="main-title" id="main-title">ITER Curriculum</h1>
+            <div id="viewer-header-info" style="display:none;">
+                <div id="viewer-header-line1" class="viewer-header-line"></div>
+                <div id="viewer-header-line2" class="viewer-header-line"></div>
+            </div>
+            <div class="header-options" id="header-options" style="display:none;">
+                <div class="hamburger" id="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </header>
 
+        <div id="one-time-process-indicator" class="one-time-process-indicator">
+            <span class="indicator-icon">⚙️</span>
+            <span class="indicator-text">One Time Process</span>
+        </div>
+
+        <main class="main-content">
+            <div class="section active" id="batch-section">
+                <div class="dropdown-container">
+                    <div class="container-header">
+                        <div class="icon">📅</div>
+                        <h2>Select Admission Batch</h2>
+                    </div>
+                    <div class="dropdown-wrapper">
+                        <select id="batch-select" class="dropdown">
+                            <option value="">Choose Batch</option>
+                            <option value="2024">2024</option>
+                            <option value="2023">2023</option>
+                            <option value="2022">2022</option>
+                            <option value="2021">2021</option>
+                            <option value="2020">2020</option>
+                        </select>
+                        <div class="dropdown-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M7 10l5 5 5-5z"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section" id="stream-section">
+                <div class="dropdown-container">
+                    <div class="container-header">
+                        <div class="icon">🎓</div>
+                        <h2>Select Stream</h2>
+                    </div>
+                    <div class="dropdown-wrapper">
+                        <select id="stream-select" class="dropdown">
+                            <option value="">Choose Stream</option>
+                            <option value="CE">Civil Engineering (CE)</option>
+                            <option value="ME">Mechanical Engineering (ME)</option>
+                            <option value="EE">Electrical Engineering (EE)</option>
+                            <option value="EEE">Electrical & Electronics Engineering (EEE)</option>
+                            <option value="ECE">Electronics & Communication Engineering (ECE)</option>
+                            <option value="CSE">Computer Science & Engineering (CSE)</option>
+                        </select>
+                        <div class="dropdown-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M7 10l5 5 5-5z"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section" id="semester-section">
+                <div class="dropdown-container">
+                    <div class="container-header">
+                        <div class="icon">📚</div>
+                        <h2>Select Semester</h2>
+                    </div>
+                    <div class="dropdown-wrapper">
+                        <select id="semester-select" class="dropdown">
+                            <option value="">Choose Semester</option>
+                            <option value="1">Semester 1</option>
+                            <option value="2">Semester 2</option>
+                            <option value="3">Semester 3</option>
+                            <option value="4">Semester 4</option>
+                            <option value="5">Semester 5</option>
+                            <option value="6">Semester 6</option>
+                            <option value="7">Semester 7</option>
+                            <option value="8">Semester 8</option>
+                        </select>
+                        <div class="dropdown-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M7 10l5 5 5-5z"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section" id="viewer-section">
+                <div class="image-viewer-container">
+                    <div class="image-viewer" id="image-viewer">
+                        <img id="curriculum-image" src="" alt="Curriculum" draggable="false" />
+                        <div class="image-loading" id="image-loading">
+                            <div class="spinner"></div>
+                            <p>Loading curriculum...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="viewer-controls">
+                        <div class="control-group navigation-group">
+                            <button class="control-btn" id="prev-image" title="Previous Image">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                                </svg>
+                            </button>
+                            <span class="image-counter" id="image-counter">1 / 1</span>
+                            <button class="control-btn" id="next-image" title="Next Image">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="control-group tools-group">
+                            <button class="control-btn" id="zoom-out" title="Zoom Out">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19 13H5v-2h14v2z"/>
+                                </svg>
+                            </button>
+                            <button class="control-btn" id="reset-zoom" title="Reset View">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                </svg>
+                            </button>
+                            <button class="control-btn" id="zoom-in" title="Zoom In">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                                </svg>
+                            </button>
+                            <button class="control-btn" id="back-to-curriculum" title="Back to Curriculum" style="display: none;">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                                </svg>
+                            </button>
+                            <button class="control-btn" id="others-btn" title="Additional Files">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                </svg>
+                            </button>
+                            <button class="control-btn" id="fullscreen-btn" title="Open in New Tab">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div class="overlay" id="overlay">
+            <div class="overlay-content">
+                <div class="overlay-header">
+                    <h2>Curriculum Settings</h2>
+                    <p>Customize your curriculum view</p>
+                </div>
+                
+                <div class="overlay-body">
+                    <div class="overlay-grid">
+                        <div class="overlay-dropdown">
+                            <label for="overlay-batch">
+                                <span class="label-icon">📅</span>
+                                Admission Batch
+                            </label>
+                            <div class="dropdown-wrapper">
+                                <select id="overlay-batch" class="dropdown">
+                                    <option value="">Choose Batch</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2023">2023</option>
+                                    <option value="2022">2022</option>
+                                    <option value="2021">2021</option>
+                                    <option value="2020">2020</option>
+                                </select>
+                                <div class="dropdown-icon">
+                                    <svg viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M7 10l5 5 5-5z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overlay-dropdown">
+                            <label for="overlay-stream">
+                                <span class="label-icon">🎓</span>
+                                Stream
+                            </label>
+                            <div class="dropdown-wrapper">
+                                <select id="overlay-stream" class="dropdown">
+                                    <option value="">Choose Stream</option>
+                                    <option value="CE">Civil Engineering (CE)</option>
+                                    <option value="ME">Mechanical Engineering (ME)</option>
+                                    <option value="EE">Electrical Engineering (EE)</option>
+                                    <option value="EEE">Electrical & Electronics Engineering (EEE)</option>
+                                    <option value="ECE">Electronics & Communication Engineering (ECE)</option>
+                                    <option value="CSE">Computer Science & Engineering (CSE)</option>
+                                </select>
+                                <div class="dropdown-icon">
+                                    <svg viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M7 10l5 5 5-5z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overlay-dropdown">
+                            <label for="overlay-semester">
+                                <span class="label-icon">📚</span>
+                                Semester
+                            </label>
+                            <div class="dropdown-wrapper">
+                                <select id="overlay-semester" class="dropdown">
+                                    <option value="">Choose Semester</option>
+                                    <option value="1">Semester 1</option>
+                                    <option value="2">Semester 2</option>
+                                    <option value="3">Semester 3</option>
+                                    <option value="4">Semester 4</option>
+                                    <option value="5">Semester 5</option>
+                                    <option value="6">Semester 6</option>
+                                    <option value="7">Semester 7</option>
+                                    <option value="8">Semester 8</option>
+                                </select>
+                                <div class="dropdown-icon">
+                                    <svg viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M7 10l5 5 5-5z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overlay-actions">
+                        <button class="btn btn-primary" id="apply-changes">Apply Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="others-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Additional Files</h3>
+                    <button class="modal-close" id="others-modal-close">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body" id="others-list">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
