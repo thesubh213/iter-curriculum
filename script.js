@@ -21,6 +21,8 @@ class CurriculumApp {
         this.isPreloading = false;
         this.currentLoadProgress = 0;
         this.loadProgressInterval = null;
+        this.loadingSteps = [];
+        this.currentLoadingStep = 0;
         
         this.isPinching = false;
         this.lastPinchDistance = null;
@@ -291,27 +293,28 @@ class CurriculumApp {
     }
 
     async loadCurriculumImages() {
-        this.showImageLoadingWithProgress('Discovering curriculum images...');
+        this.setupLoadingSteps([
+            { name: 'Discovering curriculum images...', weight: 20 },
+            { name: 'Loading additional files...', weight: 30 },
+            { name: 'Preloading images for smooth navigation...', weight: 30 },
+            { name: 'Loading current image...', weight: 20 }
+        ]);
         
         try {
             const { stream, semester } = this.selections;
+            
+            this.updateLoadingStep(0);
             this.currentImageSet = await this.discoverSemesterImages(semester);
             this.currentImageIndex = 0;
             
-            this.updateLoadingProgress(30);
-            this.showImageLoadingWithProgress('Loading additional files...');
-            
+            this.updateLoadingStep(1);
             await this.loadOthersFiles();
             
-            this.updateLoadingProgress(60);
-            
             if (this.currentImageSet.length > 0) {
-                this.showImageLoadingWithProgress('Preloading images for smooth navigation...');
-                this.preloadImageSet(this.currentImageSet);
+                this.updateLoadingStep(2);
+                await this.preloadImageSet(this.currentImageSet);
                 
-                this.updateLoadingProgress(80);
-                this.showImageLoadingWithProgress('Loading current image...');
-                
+                this.updateLoadingStep(3);
                 await this.loadImageByIndex(0);
             } else {
                 this.showImageLoadingWithProgress('No images found for this selection');
@@ -501,12 +504,23 @@ class CurriculumApp {
         this.isPreloading = true;
         this.preloadQueue = [...imageSet];
         
+        const totalImages = imageSet.length;
+        let loadedImages = 0;
+        
         for (const imageInfo of imageSet) {
             try {
                 await this.preloadImage(imageInfo.path);
+                loadedImages++;
+                
+                const stepProgress = (loadedImages / totalImages) * 100;
+                this.updateLoadingProgressWithinStep(stepProgress);
+                
                 console.log(`Preloaded: ${imageInfo.path}`);
             } catch (error) {
                 console.warn(`Failed to preload: ${imageInfo.path}`, error);
+                loadedImages++;
+                const stepProgress = (loadedImages / totalImages) * 100;
+                this.updateLoadingProgressWithinStep(stepProgress);
             }
         }
         
@@ -514,24 +528,47 @@ class CurriculumApp {
         this.preloadQueue = [];
     }
 
+    setupLoadingSteps(steps) {
+        this.loadingSteps = steps;
+        this.currentLoadingStep = 0;
+        this.currentLoadProgress = 0;
+        this.updateLoadingProgress(0);
+    }
+
+    updateLoadingStep(stepIndex) {
+        if (stepIndex < this.loadingSteps.length) {
+            this.currentLoadingStep = stepIndex;
+            const step = this.loadingSteps[stepIndex];
+            this.showImageLoadingWithProgress(step.name);
+        }
+    }
+
+    updateLoadingProgressWithinStep(stepProgress) {
+        if (this.loadingSteps.length === 0) return;
+        
+        const stepWeight = this.loadingSteps[this.currentLoadingStep].weight;
+        const previousStepsWeight = this.loadingSteps
+            .slice(0, this.currentLoadingStep)
+            .reduce((sum, step) => sum + step.weight, 0);
+        
+        const totalProgress = previousStepsWeight + (stepWeight * stepProgress / 100);
+        this.updateLoadingProgress(totalProgress);
+    }
+
     showImageLoadingWithProgress(message = 'Loading...') {
         const loadingElement = document.getElementById('image-loading');
-        const progressBar = document.getElementById('loading-progress');
         const progressText = document.getElementById('loading-text');
         
         loadingElement.classList.add('active');
-        this.currentLoadProgress = 0;
         
         if (progressText) {
             progressText.textContent = message;
         }
         
-        this.loadProgressInterval = setInterval(() => {
-            if (this.currentLoadProgress < 90) {
-                this.currentLoadProgress += Math.random() * 15;
-                this.updateLoadingProgress(this.currentLoadProgress);
-            }
-        }, 100);
+        if (this.loadProgressInterval) {
+            clearInterval(this.loadProgressInterval);
+            this.loadProgressInterval = null;
+        }
     }
 
     updateLoadingProgress(progress) {
@@ -570,31 +607,38 @@ class CurriculumApp {
     async loadImageWithCache(imagePath) {
         try {
             if (this.imageCache.has(imagePath)) {
-                this.showImageLoadingWithProgress('Loading from cache...');
-                setTimeout(() => {
-                    this.hideImageLoading();
-                }, 200);
+                if (this.loadingSteps.length === 0) {
+                    this.showImageLoadingWithProgress('Loading from cache...');
+                    this.updateLoadingProgress(100);
+                    setTimeout(() => {
+                        this.hideImageLoading();
+                    }, 200);
+                }
                 return this.imageCache.get(imagePath);
             }
 
-            this.showImageLoadingWithProgress('Downloading image...');
+            if (this.loadingSteps.length === 0) {
+                this.showImageLoadingWithProgress('Downloading image...');
+            }
             
             const img = await this.preloadImage(imagePath);
             
-            this.currentLoadProgress = 100;
-            this.updateLoadingProgress(100);
-            
-            setTimeout(() => {
-                this.hideImageLoading();
-            }, 200);
+            if (this.loadingSteps.length === 0) {
+                this.updateLoadingProgress(100);
+                setTimeout(() => {
+                    this.hideImageLoading();
+                }, 200);
+            }
             
             return img;
         } catch (error) {
             console.error('Failed to load image:', error);
-            this.showImageLoadingWithProgress('Failed to load image');
-            setTimeout(() => {
-                this.hideImageLoading();
-            }, 1000);
+            if (this.loadingSteps.length === 0) {
+                this.showImageLoadingWithProgress('Failed to load image');
+                setTimeout(() => {
+                    this.hideImageLoading();
+                }, 1000);
+            }
             throw error;
         }
     }
@@ -637,9 +681,15 @@ class CurriculumApp {
                 this.lastViewedImagePath = imageInfo.path;
                 this.saveState();
                 
+                if (this.loadingSteps.length === 0) {
+                    this.hideImageLoading();
+                }
+                
             } catch (error) {
                 console.error('Failed to load image:', error);
-                this.hideImageLoading();
+                if (this.loadingSteps.length === 0) {
+                    this.hideImageLoading();
+                }
             }
         }
     }
@@ -668,6 +718,7 @@ class CurriculumApp {
         const image = document.getElementById('curriculum-image');
         
         try {
+            this.showImageLoadingWithProgress(`Loading ${fileInfo.name}...`);
             await this.loadImageWithRetry(fileInfo.path);
             image.src = fileInfo.path;
             
@@ -680,9 +731,14 @@ class CurriculumApp {
             
             this.lastViewedImagePath = fileInfo.path;
             this.saveState();
+            
+            this.hideImageLoading();
         } catch (error) {
             console.error('Failed to load other file:', error);
-            this.hideImageLoading();
+            this.showImageLoadingWithProgress('Failed to load file');
+            setTimeout(() => {
+                this.hideImageLoading();
+            }, 1000);
         }
     }
 
@@ -736,6 +792,7 @@ class CurriculumApp {
     previousImage() {
         console.log('Previous image clicked, current index:', this.currentImageIndex);
         if (this.currentImageIndex > 0) {
+            this.showImageLoadingWithProgress('Loading previous image...');
             this.loadImageByIndex(this.currentImageIndex - 1);
         }
     }
@@ -743,6 +800,7 @@ class CurriculumApp {
     nextImage() {
         console.log('Next image clicked, current index:', this.currentImageIndex);
         if (this.currentImageIndex < this.currentImageSet.length - 1) {
+            this.showImageLoadingWithProgress('Loading next image...');
             this.loadImageByIndex(this.currentImageIndex + 1);
         }
     }
@@ -1034,21 +1092,36 @@ class CurriculumApp {
             this.resetFromBatch();
             this.updateMainDropdowns();
             if (newBatch) {
-                this.showImageLoadingWithProgress('Applying batch changes...');
+                this.setupLoadingSteps([
+                    { name: 'Applying batch changes...', weight: 50 },
+                    { name: 'Loading curriculum...', weight: 50 }
+                ]);
+                this.updateLoadingStep(0);
                 await this.handleBatchChange(newBatch);
+                this.updateLoadingStep(1);
+                await this.loadCurriculumImages();
             }
         } else if (streamChanged) {
             this.selections.stream = newStream;
             this.resetFromStream();
             this.updateMainDropdowns();
             if (newStream) {
-                this.showImageLoadingWithProgress('Applying stream changes...');
+                this.setupLoadingSteps([
+                    { name: 'Applying stream changes...', weight: 50 },
+                    { name: 'Loading curriculum...', weight: 50 }
+                ]);
+                this.updateLoadingStep(0);
                 await this.handleStreamChange(newStream);
+                this.updateLoadingStep(1);
+                await this.loadCurriculumImages();
             }
         } else if (semesterChanged && newSemester) {
             this.selections.semester = newSemester;
             this.updateMainDropdowns();
-            this.showImageLoadingWithProgress('Loading new semester...');
+            this.setupLoadingSteps([
+                { name: 'Loading new semester...', weight: 100 }
+            ]);
+            this.updateLoadingStep(0);
             await this.handleSemesterChange(newSemester);
         }
         
@@ -1154,7 +1227,12 @@ class CurriculumApp {
 
         if (this.currentSection === 'viewer-section' && this.selections.batch && this.selections.stream && this.selections.semester) {
             if (!this.isFirstLoad) {
-                this.showImageLoadingWithProgress('Restoring your previous session...');
+                this.setupLoadingSteps([
+                    { name: 'Restoring your previous session...', weight: 30 },
+                    { name: 'Loading curriculum images...', weight: 40 },
+                    { name: 'Loading your previous image...', weight: 30 }
+                ]);
+                this.updateLoadingStep(0);
             }
             
             await this.loadCurriculumImages();
@@ -1163,20 +1241,20 @@ class CurriculumApp {
             if (this.lastViewedImagePath && !this.isFirstLoad) {
                 const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
                 if (imageIndex !== -1) {
-                    this.showImageLoadingWithProgress('Loading your previous image...');
+                    this.updateLoadingStep(2);
                     setTimeout(async () => {
                         await this.loadImageByIndex(imageIndex);
                     }, 500);
                 } else {
                     if (this.currentImageIndex > 0 && this.currentImageIndex < this.currentImageSet.length) {
-                        this.showImageLoadingWithProgress('Loading your previous image...');
+                        this.updateLoadingStep(2);
                         setTimeout(async () => {
                             await this.loadImageByIndex(this.currentImageIndex);
                         }, 500);
                     }
                 }
             } else if (this.currentImageIndex > 0 && this.currentImageIndex < this.currentImageSet.length && !this.isFirstLoad) {
-                this.showImageLoadingWithProgress('Loading your previous image...');
+                this.updateLoadingStep(2);
                 setTimeout(async () => {
                     await this.loadImageByIndex(this.currentImageIndex);
                 }, 500);

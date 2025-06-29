@@ -78,7 +78,6 @@ async function handleImageRequest(request) {
         return networkResponse;
     } catch (error) {
         console.error('Failed to fetch image:', error);
-        // Return a placeholder response instead of throwing
         return new Response('Image not available', { 
             status: 404,
             headers: { 'Content-Type': 'text/plain' }
