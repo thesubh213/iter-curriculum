@@ -90,5 +90,4 @@ self.addEventListener('sync', (event) => {
 });
 
 async function preloadImages() {
-    // Background image preloading
 } 

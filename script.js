@@ -284,46 +284,53 @@ class CurriculumApp {
 
     showSection(sectionId) {
         const sections = document.querySelectorAll('.section');
-        sections.forEach(section => section.classList.remove('active'));
-
+        sections.forEach(section => {
+            section.classList.remove('active');
+        });
+        
         document.body.classList.remove('viewer-mode');
 
         setTimeout(() => {
-            document.getElementById(sectionId).classList.add('active');
-            this.currentSection = sectionId;
-            
-            const mainTitle = document.getElementById('main-title');
-            const viewerHeaderInfo = document.getElementById('viewer-header-info');
-            const headerOptions = document.getElementById('header-options');
-            const oneTimeIndicator = document.getElementById('one-time-process-indicator');
-            
-            if (sectionId === 'viewer-section') {
-                document.body.classList.add('viewer-mode');
-                mainTitle.style.display = 'none';
-                viewerHeaderInfo.style.display = 'flex';
-                headerOptions.style.display = 'flex';
-                oneTimeIndicator.classList.add('hidden');
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+                this.currentSection = sectionId;
                 
-                this.ensureToolbarVisibility();
+                const mainTitle = document.getElementById('main-title');
+                const viewerHeaderInfo = document.getElementById('viewer-header-info');
+                const headerOptions = document.getElementById('header-options');
+                const oneTimeIndicator = document.getElementById('one-time-process-indicator');
                 
-                setTimeout(() => {
-                    this.bindImageEvents();
-                }, 100);
-                
-                if (this.currentImageSet.length > 0 && this.currentImageIndex < this.currentImageSet.length) {
-                    const imageInfo = this.currentImageSet[this.currentImageIndex];
-                    this.updateViewerHeaderInfo(imageInfo.name, `${this.selections.stream} - ${this.selections.batch}`);
-                }
-            } else {
-                mainTitle.style.display = '';
-                viewerHeaderInfo.style.display = 'none';
-                headerOptions.style.display = 'none';
-                mainTitle.textContent = 'ITER Curriculum';
-                
-                if (sectionId === 'batch-section' || sectionId === 'stream-section' || sectionId === 'semester-section') {
-                    oneTimeIndicator.classList.remove('hidden');
-                } else {
+                if (sectionId === 'viewer-section') {
+                    document.body.classList.add('viewer-mode');
+                    mainTitle.style.display = 'none';
+                    viewerHeaderInfo.style.display = 'flex';
+                    headerOptions.style.display = 'flex';
                     oneTimeIndicator.classList.add('hidden');
+                    
+                    setTimeout(() => {
+                        this.ensureToolbarVisibility();
+                    }, 100);
+                    
+                    setTimeout(() => {
+                        this.bindImageEvents();
+                    }, 150);
+                    
+                    if (this.currentImageSet.length > 0 && this.currentImageIndex < this.currentImageSet.length) {
+                        const imageInfo = this.currentImageSet[this.currentImageIndex];
+                        this.updateViewerHeaderInfo(imageInfo.name, `${this.selections.stream} - ${this.selections.batch}`);
+                    }
+                } else {
+                    mainTitle.style.display = '';
+                    viewerHeaderInfo.style.display = 'none';
+                    headerOptions.style.display = 'none';
+                    mainTitle.textContent = 'ITER Curriculum';
+                    
+                    if (sectionId === 'batch-section' || sectionId === 'stream-section' || sectionId === 'semester-section') {
+                        oneTimeIndicator.classList.remove('hidden');
+                    } else {
+                        oneTimeIndicator.classList.add('hidden');
+                    }
                 }
             }
         }, 150);
@@ -331,30 +338,58 @@ class CurriculumApp {
 
     ensureToolbarVisibility() {
         const toolbar = document.querySelector('.viewer-controls');
-        if (toolbar) {
-            toolbar.style.display = 'flex';
-            toolbar.style.visibility = 'visible';
-            toolbar.style.opacity = '1';
-            toolbar.style.pointerEvents = 'auto';
-            toolbar.style.zIndex = '1001';
-            
-            const controlGroups = toolbar.querySelectorAll('.control-group');
-            controlGroups.forEach(group => {
-                group.style.display = 'flex';
-                group.style.visibility = 'visible';
-                group.style.opacity = '1';
-            });
-            
-            const buttons = toolbar.querySelectorAll('.control-btn');
-            buttons.forEach(button => {
-                button.style.display = 'flex';
-                button.style.visibility = 'visible';
-                button.style.opacity = '1';
-                button.style.pointerEvents = 'auto';
-            });
-        } else {
+        if (!toolbar) {
             console.warn('Toolbar not found');
+            return;
         }
+
+        const isMobile = window.innerWidth <= 768;
+        
+        toolbar.style.display = 'flex';
+        toolbar.style.visibility = 'visible';
+        toolbar.style.opacity = '1';
+        toolbar.style.pointerEvents = 'auto';
+        toolbar.style.zIndex = '1001';
+        
+        if (isMobile) {
+            toolbar.style.bottom = '1rem';
+            toolbar.style.left = '0.75rem';
+            toolbar.style.right = '0.75rem';
+            toolbar.style.transform = 'none';
+            toolbar.style.padding = '0.75rem';
+            toolbar.style.gap = '0.5rem';
+            toolbar.style.maxWidth = 'none';
+            toolbar.style.width = 'auto';
+            toolbar.style.background = 'rgba(0, 0, 0, 0.95)';
+        }
+        
+        const controlGroups = toolbar.querySelectorAll('.control-group');
+        controlGroups.forEach(group => {
+            group.style.display = 'flex';
+            group.style.visibility = 'visible';
+            group.style.opacity = '1';
+        });
+        
+        const buttons = toolbar.querySelectorAll('.control-btn');
+        buttons.forEach(button => {
+            button.style.display = 'flex';
+            button.style.visibility = 'visible';
+            button.style.opacity = '1';
+            button.style.pointerEvents = 'auto';
+            
+            if (isMobile) {
+                button.style.width = '40px';
+                button.style.height = '40px';
+                button.style.minWidth = '40px';
+                button.style.minHeight = '40px';
+            }
+        });
+        
+        setTimeout(() => {
+            if (toolbar.style.display !== 'flex' || toolbar.style.visibility !== 'visible') {
+                this.ensureToolbarVisibility();
+            }
+        }, 100);
     }
 
     async loadCurriculumImages() {
@@ -619,6 +654,9 @@ class CurriculumApp {
             if (progressText) {
                 progressText.textContent = step.name;
             }
+            
+            const stepProgress = (stepIndex / this.loadingSteps.length) * 80;
+            this.updateLoadingPopupProgress(stepProgress);
         }
     }
 
@@ -632,12 +670,6 @@ class CurriculumApp {
         
         const totalProgress = previousStepsWeight + (stepWeight * stepProgress / 100);
         this.updateLoadingPopupProgress(totalProgress);
-        
-        if (stepProgress > 0 && stepProgress < 100) {
-            setTimeout(() => {
-                this.updateLoadingPopupProgress(totalProgress + 1);
-            }, 50);
-        }
     }
 
     showImageLoadingWithProgress(message = 'Loading...') {
@@ -1465,6 +1497,13 @@ class CurriculumApp {
             clearInterval(this.loadProgressInterval);
             this.loadProgressInterval = null;
         }
+        
+        let progress = 0;
+        this.loadProgressInterval = setInterval(() => {
+            progress += 2;
+            if (progress > 85) progress = 85;
+            this.updateLoadingPopupProgress(progress);
+        }, 100);
     }
 
     updateLoadingPopupProgress(progress) {
@@ -1475,8 +1514,9 @@ class CurriculumApp {
             progressBar.style.width = `${Math.min(progress, 100)}%`;
         }
         
-        if (progressText && !progressText.textContent.includes('%')) {
-            const currentText = progressText.textContent.replace(/\s+\d+%$/, '');
+        if (progressText && this.loadingSteps.length > 0 && this.currentLoadingStep < this.loadingSteps.length) {
+            const currentStep = this.loadingSteps[this.currentLoadingStep];
+            const currentText = currentStep ? currentStep.name : 'Loading...';
             progressText.textContent = `${currentText} ${Math.round(progress)}%`;
         }
     }
@@ -1492,9 +1532,7 @@ class CurriculumApp {
             this.loadProgressInterval = null;
         }
         
-        if (progressBar) {
-            progressBar.style.width = '100%';
-        }
+        this.updateLoadingPopupProgress(100);
         
         setTimeout(() => {
             if (loadingElement) {
@@ -1509,7 +1547,7 @@ class CurriculumApp {
             if (progressText) {
                 progressText.textContent = 'Loading...';
             }
-        }, 300);
+        }, 500);
     }
 }
 let app;
@@ -1521,5 +1559,13 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && app) {
         app.updateUI();
+    }
+});
+
+window.addEventListener('resize', () => {
+    if (app && app.currentSection === 'viewer-section') {
+        setTimeout(() => {
+            app.ensureToolbarVisibility();
+        }, 100);
     }
 });

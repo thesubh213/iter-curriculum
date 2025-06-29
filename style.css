@@ -733,7 +733,6 @@ body {
     box-shadow: none !important;
 }
 
-/* Ensure back-to-curriculum button is hidden by default and only shown when needed */
 #back-to-curriculum {
     display: none !important;
 }
