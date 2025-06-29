@@ -318,7 +318,7 @@ class CurriculumApp {
                     
                     if (this.currentImageSet.length > 0 && this.currentImageIndex < this.currentImageSet.length) {
                         const imageInfo = this.currentImageSet[this.currentImageIndex];
-                        this.updateViewerHeaderInfo(imageInfo.name, `${this.selections.stream} - ${this.selections.batch}`);
+                        this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
                     }
                 } else {
                     mainTitle.style.display = '';
@@ -453,15 +453,17 @@ class CurriculumApp {
         const { stream } = this.selections;
         const images = [];
         
+        let streamFolder = stream.toLowerCase();
+        
         const patterns = [
-            `${stream.toLowerCase()}-sem${semester}.webp`,
-            `${stream.toLowerCase()}-sem${semester}-1.webp`,
-            `${stream.toLowerCase()}-sem${semester}-2.webp`,
-            `${stream.toLowerCase()}-sem${semester}-3.webp`,
+            `${streamFolder}-sem${semester}.webp`,
+            `${streamFolder}-sem${semester}-1.webp`,
+            `${streamFolder}-sem${semester}-2.webp`,
+            `${streamFolder}-sem${semester}-3.webp`,
         ];
         
         for (const pattern of patterns) {
-            const imagePath = `images/${stream.toLowerCase()}/${pattern}`;
+            const imagePath = `images/${streamFolder}/${pattern}`;
             if (await this.imageExists(imagePath)) {
                 images.push({
                     path: imagePath,
@@ -481,6 +483,8 @@ class CurriculumApp {
             return;
         }
         
+        let streamFolder = stream.toLowerCase();
+        
         const imageExtensions = ['webp', 'png'];
         const commonFileNames = [
             'elective', 'iks', 'core elective', 'open elective', 'lab', 'theory', 'practical',
@@ -493,7 +497,7 @@ class CurriculumApp {
         for (const baseName of commonFileNames) {
             for (const ext of imageExtensions) {
                 const fileName = `${baseName}.${ext}`;
-                const imagePath = `images/${stream.toLowerCase()}/others/${fileName}`;
+                const imagePath = `images/${streamFolder}/others/${fileName}`;
                 
                 if (await this.imageExists(imagePath)) {
                     const displayName = this.formatOtherFileName(fileName);
@@ -512,7 +516,7 @@ class CurriculumApp {
             }
         }
         
-        const additionalFiles = await this.discoverAdditionalFiles(stream.toLowerCase());
+        const additionalFiles = await this.discoverAdditionalFiles(streamFolder);
         
         for (const file of additionalFiles) {
             const normalizedValue = file.value.toLowerCase();
@@ -563,12 +567,28 @@ class CurriculumApp {
     }
 
     formatImageName(fileName) {
-        const match = fileName.match(/([a-z]+)-sem(\d+)(?:-(\d+))?\.webp/);
+        const match = fileName.match(/([a-z-]+)-sem(\d+)(?:-(\d+))?\.webp/);
         if (match) {
-            const stream = match[1].toUpperCase();
+            let stream = match[1].toLowerCase();
             const sem = match[2];
             const part = match[3];
-            return part ? `${stream} Semester ${sem} - Part ${part}` : `${stream} Semester ${sem}`;
+            
+            const streamDisplayNames = {
+                'ce': 'CE',
+                'me': 'ME',
+                'ee': 'EE',
+                'eee': 'EEE',
+                'ece': 'ECE',
+                'cse': 'CSE',
+                'cs-it': 'CS-IT',
+                'cse-aiml': 'CSE-AIML',
+                'cse-cs': 'CSE-CS',
+                'cse-ds': 'CSE-DS',
+                'cse-iot': 'CSE-IOT'
+            };
+            
+            const displayName = streamDisplayNames[stream] || stream.toUpperCase();
+            return part ? `${displayName} Semester ${sem} - Part ${part}` : `${displayName} Semester ${sem}`;
         }
         return fileName;
     }
@@ -773,7 +793,7 @@ class CurriculumApp {
                 await this.loadImageWithRetry(imageInfo.path);
                 image.src = imageInfo.path;
                 
-                this.updateViewerHeaderInfo(imageInfo.name, `${this.selections.stream} - ${this.selections.batch}`);
+                this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
                 
                 this.isViewingAdditionalFile = false;
                 this.updateNavigationControls();
@@ -1548,6 +1568,24 @@ class CurriculumApp {
                 progressText.textContent = 'Loading...';
             }
         }, 500);
+    }
+
+    getStreamDisplayName() {
+        const streamDisplayNames = {
+            'CE': 'Civil Engineering (CE)',
+            'ME': 'Mechanical Engineering (ME)',
+            'EE': 'Electrical Engineering (EE)',
+            'EEE': 'Electrical & Electronics Engineering (EEE)',
+            'ECE': 'Electronics & Communication Engineering (ECE)',
+            'CSE': 'Computer Science & Engineering (CSE)',
+            'CS-IT': 'Computer Science and Information Technology (CS-IT)',
+            'CSE-AIML': 'CSE - Artificial Intelligence and Machine Learning (CSE-AIML)',
+            'CSE-CS': 'CSE - Cyber Security (CSE-CS)',
+            'CSE-DS': 'CSE - Data Science (CSE-DS)',
+            'CSE-IOT': 'CSE - Internet of Things (CSE-IOT)'
+        };
+        
+        return streamDisplayNames[this.selections.stream] || this.selections.stream;
     }
 }
 let app;
