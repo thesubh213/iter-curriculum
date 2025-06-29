@@ -386,28 +386,28 @@ class CurriculumApp {
                 
                 this.updateLoadingStep(3);
                 await this.loadImageByIndex(0);
-            } else {
-                this.showLoadingPopup('No images found for this selection');
+                
                 setTimeout(() => {
                     this.hideLoadingPopup();
-                }, 1000);
+                }, 500);
+            } else {
+                this.showLoadingPopup(`No curriculum images found for ${stream} Semester ${semester}`);
+                setTimeout(() => {
+                    this.hideLoadingPopup();
+                }, 2000);
             }
             
-            this.updateImageNavigation();
+            this.updateNavigationControls();
             
             this.loadingSteps = [];
             this.currentLoadingStep = 0;
             
-            setTimeout(() => {
-                this.hideLoadingPopup();
-            }, 500);
-            
         } catch (error) {
             console.error('Error loading curriculum images:', error);
-            this.showLoadingPopup('Error loading curriculum');
+            this.showLoadingPopup(`Error loading curriculum: ${error.message}`);
             setTimeout(() => {
                 this.hideLoadingPopup();
-            }, 2000);
+            }, 3000);
             
             this.loadingSteps = [];
             this.currentLoadingStep = 0;
@@ -446,7 +446,7 @@ class CurriculumApp {
             return;
         }
         
-        const imageExtensions = ['webp'];
+        const imageExtensions = ['webp', 'png'];
         const commonFileNames = [
             'elective', 'iks', 'core elective', 'open elective', 'lab', 'theory', 'practical',
             'syllabus', 'schedule', 'timetable', 'curriculum', 'course', 'subject'
@@ -462,7 +462,7 @@ class CurriculumApp {
                 
                 if (await this.imageExists(imagePath)) {
                     const displayName = this.formatOtherFileName(fileName);
-                    const value = fileName.replace(/\.(webp)$/i, '').toLowerCase();
+                    const value = fileName.replace(/\.(webp|png)$/i, '').toLowerCase();
                     
                     if (!discoveredFiles.has(value)) {
                         discoveredFiles.add(value);
@@ -490,7 +490,7 @@ class CurriculumApp {
 
     async discoverAdditionalFiles(stream) {
         const files = [];
-        const imageExtensions = ['webp'];
+        const imageExtensions = ['webp', 'png'];
         
         const additionalPatterns = [
             'IKS', 'ELECTIVE', 'LAB', 'THEORY', 'PRACTICAL', 'SYLLABUS', 'SCHEDULE'
@@ -503,7 +503,7 @@ class CurriculumApp {
                 
                 if (await this.imageExists(imagePath)) {
                     const displayName = this.formatOtherFileName(fileName);
-                    const value = fileName.replace(/\.(webp)$/i, '').toLowerCase();
+                    const value = fileName.replace(/\.(webp|png)$/i, '').toLowerCase();
                     
                     files.push({
                         path: imagePath,
@@ -539,7 +539,7 @@ class CurriculumApp {
     }
 
     formatOtherFileName(fileName) {
-        const nameWithoutExtension = fileName.replace(/\.(webp)$/i, '');
+        const nameWithoutExtension = fileName.replace(/\.(webp|png)$/i, '');
         
         return nameWithoutExtension
             .split(/[-_\s]+/) 
@@ -572,7 +572,6 @@ class CurriculumApp {
                 reject(new Error(`Failed to load image: ${imagePath}`));
             };
 
-            img.crossOrigin = 'anonymous';
             img.src = imagePath;
         });
     }
@@ -692,7 +691,12 @@ class CurriculumApp {
         this.updateLoadingProgress(100);
         
         setTimeout(() => {
-            loadingElement.classList.remove('active');
+            if (loadingElement) {
+                loadingElement.classList.remove('active');
+                loadingElement.style.display = 'none';
+                loadingElement.style.visibility = 'hidden';
+                loadingElement.style.opacity = '0';
+            }
             if (progressBar) progressBar.style.width = '0%';
             if (progressText) progressText.textContent = 'Loading...';
         }, 300);
@@ -743,15 +747,22 @@ class CurriculumApp {
                 this.updateNavigationControls();
                 
                 this.resetImageTransform();
-                this.updateImageNavigation();
                 
                 this.preloadAdjacentImages(index);
                 
                 this.lastViewedImagePath = imageInfo.path;
                 this.saveState();
                 
+                setTimeout(() => {
+                    this.hideLoadingPopup();
+                }, 100);
+                
             } catch (error) {
                 console.error('Failed to load image:', error);
+                this.showLoadingPopup(`Failed to load image: ${imageInfo.name}`);
+                setTimeout(() => {
+                    this.hideLoadingPopup();
+                }, 2000);
             }
         }
     }
@@ -822,7 +833,7 @@ class CurriculumApp {
             if (nextBtn) nextBtn.style.display = 'none';
             if (imageCounter) imageCounter.style.display = 'none';
             if (othersBtn) othersBtn.style.display = 'flex';
-            if (backToCurriculumBtn) backToCurriculumBtn.style.display = 'flex';
+            if (backToCurriculumBtn) backToCurriculumBtn.classList.add('show');
             if (navigationGroup) navigationGroup.style.display = 'none';
         } else {
             if (prevBtn) {
@@ -840,7 +851,7 @@ class CurriculumApp {
             }
             
             if (backToCurriculumBtn) {
-                backToCurriculumBtn.style.display = 'none';
+                backToCurriculumBtn.classList.remove('show');
             }
             
             if (imageCounter && this.currentImageSet.length > 1) {
@@ -879,39 +890,6 @@ class CurriculumApp {
             setTimeout(() => {
                 this.hideLoadingPopup();
             }, 500);
-        }
-    }
-
-    updateImageNavigation() {
-        const prevBtn = document.getElementById('prev-image');
-        const nextBtn = document.getElementById('next-image');
-        const imageCounter = document.getElementById('image-counter');
-        const othersBtn = document.getElementById('others-btn');
-        const navigationGroup = document.querySelector('.navigation-group');
-        
-        if (prevBtn) {
-            prevBtn.disabled = this.currentImageIndex <= 0;
-            prevBtn.style.display = this.currentImageSet.length > 1 ? 'flex' : 'none';
-        }
-        
-        if (nextBtn) {
-            nextBtn.disabled = this.currentImageIndex >= this.currentImageSet.length - 1;
-            nextBtn.style.display = this.currentImageSet.length > 1 ? 'flex' : 'none';
-        }
-        
-        if (othersBtn) {
-            othersBtn.style.display = 'flex'; 
-        }
-        
-        if (imageCounter && this.currentImageSet.length > 1) {
-            imageCounter.textContent = `${this.currentImageIndex + 1} / ${this.currentImageSet.length}`;
-            imageCounter.style.display = 'block';
-        } else if (imageCounter) {
-            imageCounter.style.display = 'none';
-        }
-        
-        if (navigationGroup) {
-            navigationGroup.style.display = this.currentImageSet.length > 1 ? 'flex' : 'none';
         }
     }
 
@@ -1391,6 +1369,7 @@ class CurriculumApp {
         }
 
         this.updateOverlaySelections();
+        this.updateNavigationControls();
     }
 
     updateViewerHeaderInfo(line1, line2) {
@@ -1402,6 +1381,7 @@ class CurriculumApp {
 
     backToCurriculum() {
         this.isViewingAdditionalFile = false;
+        this.updateNavigationControls();
         if (this.currentImageSet.length > 0 && this.previousCurriculumIndex < this.currentImageSet.length) {
             this.loadImageByIndex(this.previousCurriculumIndex);
         }
@@ -1520,6 +1500,8 @@ class CurriculumApp {
             if (loadingElement) {
                 loadingElement.classList.remove('active');
                 loadingElement.style.display = 'none';
+                loadingElement.style.visibility = 'hidden';
+                loadingElement.style.opacity = '0';
             }
             if (progressBar) {
                 progressBar.style.width = '0%';

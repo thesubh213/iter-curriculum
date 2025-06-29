@@ -733,6 +733,15 @@ body {
     box-shadow: none !important;
 }
 
+/* Ensure back-to-curriculum button is hidden by default and only shown when needed */
+#back-to-curriculum {
+    display: none !important;
+}
+
+#back-to-curriculum.show {
+    display: flex !important;
+}
+
 .image-counter {
     color: var(--white) !important;
     font-size: 0.875rem !important;

@@ -137,17 +137,6 @@
                 <div class="image-viewer-container">
                     <div class="image-viewer" id="image-viewer">
                         <img id="curriculum-image" src="" alt="Curriculum" draggable="false" />
-                        <div class="image-loading" id="image-loading">
-                            <div class="loading-container">
-                                <div class="spinner"></div>
-                                <div class="loading-text" id="loading-text">Loading...</div>
-                                <div class="progress-container">
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" id="loading-progress"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                     
                     <div class="viewer-controls">
@@ -201,6 +190,19 @@
                 </div>
             </div>
         </main>
+
+        <!-- Global Loading Popup -->
+        <div class="image-loading" id="image-loading">
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <div class="loading-text" id="loading-text">Loading...</div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="loading-progress"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="overlay" id="overlay">
             <div class="overlay-content">
