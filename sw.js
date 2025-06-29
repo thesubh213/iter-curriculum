@@ -3,17 +3,16 @@ const IMAGE_CACHE_NAME = 'iter-images-v2';
 
 const STATIC_FILES = [
     '/',
-    '/index.html',
-    '/style.css',
-    '/script.js',
-    '/manifest.json'
+    'index.html',
+    'style.css',
+    'script.js',
+    'manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
-                console.log('Caching static files');
                 return cache.addAll(STATIC_FILES).catch(error => {
                     console.warn('Some files failed to cache:', error);
                 });
@@ -27,7 +26,6 @@ self.addEventListener('activate', (event) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME && cacheName !== IMAGE_CACHE_NAME) {
-                        console.log('Deleting old cache:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
@@ -50,7 +48,7 @@ self.addEventListener('fetch', (event) => {
                 .then((response) => {
                     return response || fetch(event.request).catch(() => {
                         if (event.request.destination === 'document') {
-                            return caches.match('/index.html');
+                            return caches.match('index.html');
                         }
                         return new Response('Not found', { status: 404 });
                     });
@@ -92,5 +90,5 @@ self.addEventListener('sync', (event) => {
 });
 
 async function preloadImages() {
-    console.log('Background image preloading');
+    // Background image preloading
 } 
