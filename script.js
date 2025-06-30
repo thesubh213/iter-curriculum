@@ -175,48 +175,48 @@ class CurriculumApp {
     }
 
     bindImageEvents() {
-        const imageViewer = document.getElementById('image-viewer');
-        const image = document.getElementById('curriculum-image');
-        const bindButtonEvent = (id, handler) => {
-            const element = document.getElementById(id);
-            if (element) {
+            const imageViewer = document.getElementById('image-viewer');
+            const image = document.getElementById('curriculum-image');
+            const bindButtonEvent = (id, handler) => {
+                    const element = document.getElementById(id);
+                    if (element) {
                 element.addEventListener('click', handler, { passive: true });
-            }
-        };
-        bindButtonEvent('zoom-in', () => this.zoomImage(1.2));
-        bindButtonEvent('zoom-out', () => this.zoomImage(0.8));
-        bindButtonEvent('reset-zoom', () => this.resetImageTransform());
-        bindButtonEvent('prev-image', () => this.previousImage());
-        bindButtonEvent('next-image', () => this.nextImage());
-        bindButtonEvent('others-btn', () => this.showOthersModal());
-        bindButtonEvent('fullscreen-btn', () => this.toggleFullscreen());
-        bindButtonEvent('back-to-curriculum', () => this.backToCurriculum());
-        bindButtonEvent('others-modal-close', () => this.closeOthersModal());
-        const othersModal = document.getElementById('others-modal');
-        if (othersModal) {
-            othersModal.addEventListener('click', (e) => {
-                if (e.target === othersModal) this.closeOthersModal();
+                }
+            };
+            bindButtonEvent('zoom-in', () => this.zoomImage(1.2));
+            bindButtonEvent('zoom-out', () => this.zoomImage(0.8));
+            bindButtonEvent('reset-zoom', () => this.resetImageTransform());
+            bindButtonEvent('prev-image', () => this.previousImage());
+            bindButtonEvent('next-image', () => this.nextImage());
+            bindButtonEvent('others-btn', () => this.showOthersModal());
+            bindButtonEvent('fullscreen-btn', () => this.toggleFullscreen());
+            bindButtonEvent('back-to-curriculum', () => this.backToCurriculum());
+            bindButtonEvent('others-modal-close', () => this.closeOthersModal());
+            const othersModal = document.getElementById('others-modal');
+            if (othersModal) {
+                    othersModal.addEventListener('click', (e) => {
+                        if (e.target === othersModal) this.closeOthersModal();
             }, { passive: true });
-        }
-        if (imageViewer) {
+                }
+            if (imageViewer) {
             imageViewer.addEventListener('pointerdown', (e) => this.startImageDrag(e), { passive: false });
             imageViewer.addEventListener('pointermove', (e) => this.dragImage(e), { passive: false });
             imageViewer.addEventListener('pointerup', () => this.endImageDrag(), { passive: true });
             imageViewer.addEventListener('pointerleave', () => this.endImageDrag(), { passive: true });
-            imageViewer.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                const factor = e.deltaY > 0 ? 0.9 : 1.1;
-                this.zoomImageAtPoint(factor, e.offsetX, e.offsetY);
+                    imageViewer.addEventListener('wheel', (e) => {
+                            e.preventDefault();
+                            const factor = e.deltaY > 0 ? 0.9 : 1.1;
+                            this.zoomImageAtPoint(factor, e.offsetX, e.offsetY);
             }, { passive: false });
         }
-        if (image) {
-            image.addEventListener('load', () => {
-                this.resetImageTransform();
+            if (image) {
+                    image.addEventListener('load', () => {
+                            this.resetImageTransform();
             }, { passive: true });
             image.addEventListener('contextmenu', (e) => e.preventDefault(), { passive: false });
-            image.addEventListener('dblclick', (e) => {
-                e.preventDefault();
-                this.resetImageTransform();
+                    image.addEventListener('dblclick', (e) => {
+                            e.preventDefault();
+                            this.resetImageTransform();
             }, { passive: false });
             image.addEventListener('pointerdown', (e) => this.handlePointerStart(e), { passive: false });
             image.addEventListener('pointermove', (e) => this.handlePointerMove(e), { passive: false });
@@ -425,21 +425,18 @@ class CurriculumApp {
         const files = [];
         const imageExtensions = ['webp', 'png', 'jpg', 'jpeg'];
         const maxFiles = 50;
-        let fileIndex = 1;
-        let foundAny = false;
         for (let i = 1; i <= maxFiles; i++) {
             for (const ext of imageExtensions) {
                 const fileName = `${i}.${ext}`;
+                if (fileName.toLowerCase() === 'desktop.ini') continue;
                 const imagePath = `images/${batch}/${stream}/others/${fileName}`;
                 if (await this.imageExists(imagePath)) {
                     files.push({
                         path: imagePath,
-                        name: String(fileIndex),
-                        value: String(fileIndex),
+                        name: this.formatFileName(fileName),
+                        value: String(i),
                         type: 'other'
                     });
-                    fileIndex++;
-                    foundAny = true;
                     break;
                 }
             }
@@ -527,33 +524,33 @@ class CurriculumApp {
     }
 
     async preloadImage(imagePath) {
-        if (this.imageCache.has(imagePath)) {
-            return this.imageCache.get(imagePath);
-        }
-        return new Promise((resolve, reject) => {
-            const img = new Image();
+            if (this.imageCache.has(imagePath)) {
+                return this.imageCache.get(imagePath);
+            }
+            return new Promise((resolve, reject) => {
+                    const img = new Image();
             img.decoding = 'async';
             img.loading = 'eager';
             img.fetchPriority = 'high';
-            let timedOut = false;
-            const timer = setTimeout(() => {
-                timedOut = true;
-                reject(new Error('Image load timeout'));
-            }, this.appConfig.loadingTimeout || 10000);
-            img.onload = () => {
-                if (!timedOut) {
-                    clearTimeout(timer);
-                    this.imageCache.set(imagePath, img);
-                    resolve(img);
-                }
-            };
-            img.onerror = () => {
-                if (!timedOut) {
-                    clearTimeout(timer);
-                    reject(new Error('Failed to load image: ' + imagePath));
-                }
-            };
-            img.src = imagePath;
+                    let timedOut = false;
+                    const timer = setTimeout(() => {
+                        timedOut = true;
+                        reject(new Error('Image load timeout'));
+                    }, this.appConfig.loadingTimeout || 10000);
+                    img.onload = () => {
+                        if (!timedOut) {
+                            clearTimeout(timer);
+                                this.imageCache.set(imagePath, img);
+                                resolve(img);
+                        }
+                    };
+                    img.onerror = () => {
+                        if (!timedOut) {
+                            clearTimeout(timer);
+                            reject(new Error('Failed to load image: ' + imagePath));
+                        }
+                    };
+                        img.src = imagePath;
         });
     }
 
@@ -676,44 +673,44 @@ class CurriculumApp {
     }
 
     async loadImageByIndex(index) {
-        let targetImageSet = this.isViewingAdditionalFile ? this.otherFiles : this.currentImageSet;
-        if (index >= 0 && index < targetImageSet.length) {
-            this.currentImageIndex = index;
-            const imageInfo = targetImageSet[index];
-            const image = document.getElementById('curriculum-image');
-            if (!image) {
-                this.hideLoadingPopup();
-                return;
-            }
-            image.src = '';
-            this.updateLoadingPopupProgress(95);
+            let targetImageSet = this.isViewingAdditionalFile ? this.otherFiles : this.currentImageSet;
+            if (index >= 0 && index < targetImageSet.length) {
+                this.currentImageIndex = index;
+                const imageInfo = targetImageSet[index];
+                const image = document.getElementById('curriculum-image');
+                if (!image) {
+                    this.hideLoadingPopup();
+                    return;
+                }
+                    image.src = '';
+                    this.updateLoadingPopupProgress(95);
             try {
                 await this.loadImageWithRetry(imageInfo.path);
-                image.src = this.addCacheBuster(imageInfo.path);
-                if (this.isViewingAdditionalFile) {
-                    this.updateViewerHeaderInfo(imageInfo.name, 'Additional Resource');
-                } else {
-                    this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
-                }
-                this.resetImageTransform();
-                if (!this.isViewingAdditionalFile) {
+                    image.src = this.addCacheBuster(imageInfo.path);
+                    if (this.isViewingAdditionalFile) {
+                        this.updateViewerHeaderInfo(imageInfo.name, 'Additional Resource');
+                    } else {
+                        this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
+                    }
+                    this.resetImageTransform();
+                    if (!this.isViewingAdditionalFile) {
                     if (window.requestIdleCallback) {
                         requestIdleCallback(() => this.preloadAdjacentImages(index));
                     } else {
                         setTimeout(() => this.preloadAdjacentImages(index), 100);
                     }
                 }
-                this.lastViewedImagePath = imageInfo.path;
-                this.saveState();
-                this.updateLoadingPopupProgress(100);
-                this.hideLoadingPopup();
-                this.updateNavigationControls();
-            } catch (error) {
-                this.hideLoadingPopup();
+                    this.lastViewedImagePath = imageInfo.path;
+                    this.saveState();
+                    this.updateLoadingPopupProgress(100);
+                    this.hideLoadingPopup();
+                    this.updateNavigationControls();
+                } catch (error) {
+                        this.hideLoadingPopup();
                 this.showGlobalError('Error loading image: ' + (error && error.message ? error.message : 'Unknown error'));
                 this.showSection('semester-section');
-            }
-        } else {
+                }
+            } else {
             this.hideLoadingPopup();
         }
     }
@@ -1050,10 +1047,10 @@ class CurriculumApp {
     }
 
     handlePointerEnd(e) {
-        this.isDragging = false;
-        this.isPinching = false;
-        const imageViewer = document.getElementById('image-viewer');
-        if (imageViewer) imageViewer.classList.remove('dragging');
+                this.isDragging = false;
+                this.isPinching = false;
+                const imageViewer = document.getElementById('image-viewer');
+                if (imageViewer) imageViewer.classList.remove('dragging');
     }
 
     toggleFullscreen() {
@@ -1072,6 +1069,8 @@ class CurriculumApp {
         try {
             const popup = document.getElementById('popup');
             if (popup) popup.classList.remove('active');
+            localStorage.setItem('iterCurriculumWelcomeDismissed', '1');
+            this.updateUI();
         } catch (error) {}
     }
 
@@ -1149,18 +1148,18 @@ class CurriculumApp {
     }
 
     updateLoadingPopupProgress(progress) {
-        const progressBar = document.getElementById('loading-progress');
-        if (progressBar) {
+            const progressBar = document.getElementById('loading-progress');
+            if (progressBar) {
             progressBar.style.transition = 'width 0.15s cubic-bezier(0.4,0,0.2,1)';
             progressBar.style.width = `${Math.min(progress, 100)}%`;
         }
         const progressText = document.getElementById('loading-text');
-        if (progressText && this.loadingSteps.length > 0 && this.currentLoadingStep < this.loadingSteps.length) {
-            const currentStep = this.loadingSteps[this.currentLoadingStep];
-            const currentText = currentStep ? currentStep.name : 'Loading...';
-            if (progressText.textContent !== currentText) {
-                progressText.textContent = currentText;
-            }
+            if (progressText && this.loadingSteps.length > 0 && this.currentLoadingStep < this.loadingSteps.length) {
+                    const currentStep = this.loadingSteps[this.currentLoadingStep];
+                    const currentText = currentStep ? currentStep.name : 'Loading...';
+                    if (progressText.textContent !== currentText) {
+                        progressText.textContent = currentText;
+                    }
         }
     }
 
@@ -1554,36 +1553,36 @@ class CurriculumApp {
                 const preloadPromise = this.preloadImageSet(this.currentImageSet);
                 this.updateLoadingStep(3);
                 try {
-                    if (this.isViewingAdditionalFile && this.lastViewedImagePath) {
-                        const fileIndex = this.otherFiles.findIndex(file => file.path === this.lastViewedImagePath);
-                        if (fileIndex >= 0) {
-                            this.currentImageSet = this.otherFiles;
-                            this.currentImageIndex = fileIndex;
-                            await this.loadImageByIndex(fileIndex);
-                        } else {
-                            this.isViewingAdditionalFile = false;
-                            this.currentImageSet = await this.discoverSemesterImages(semester);
-                            if (this.previousCurriculumIndex < this.currentImageSet.length) {
-                                await this.loadImageByIndex(this.previousCurriculumIndex);
-                            } else {
-                                await this.loadImageByIndex(0);
-                            }
-                        }
-                    } else if (this.lastViewedImagePath) {
-                        const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
-                        if (imageIndex !== -1) {
-                            await this.loadImageByIndex(imageIndex);
-                        } else if (this.currentImageIndex < this.currentImageSet.length) {
-                            await this.loadImageByIndex(this.currentImageIndex);
+                if (this.isViewingAdditionalFile && this.lastViewedImagePath) {
+                    const fileIndex = this.otherFiles.findIndex(file => file.path === this.lastViewedImagePath);
+                    if (fileIndex >= 0) {
+                        this.currentImageSet = this.otherFiles;
+                        this.currentImageIndex = fileIndex;
+                        await this.loadImageByIndex(fileIndex);
+                    } else {
+                        this.isViewingAdditionalFile = false;
+                        this.currentImageSet = await this.discoverSemesterImages(semester);
+                        if (this.previousCurriculumIndex < this.currentImageSet.length) {
+                            await this.loadImageByIndex(this.previousCurriculumIndex);
                         } else {
                             await this.loadImageByIndex(0);
                         }
+                    }
+                } else if (this.lastViewedImagePath) {
+                    const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
+                    if (imageIndex !== -1) {
+                        await this.loadImageByIndex(imageIndex);
                     } else if (this.currentImageIndex < this.currentImageSet.length) {
                         await this.loadImageByIndex(this.currentImageIndex);
                     } else {
                         await this.loadImageByIndex(0);
                     }
-                    await Promise.all([othersLoadPromise, preloadPromise]);
+                } else if (this.currentImageIndex < this.currentImageSet.length) {
+                    await this.loadImageByIndex(this.currentImageIndex);
+                } else {
+                    await this.loadImageByIndex(0);
+                }
+                await Promise.all([othersLoadPromise, preloadPromise]);
                     this.showSection('viewer-section');
                     this.hideLoadingPopup();
                 } catch (error) {
@@ -1696,6 +1695,7 @@ class CurriculumApp {
         this.saveState();
         this.updateMainDropdowns();
         this.showSection('batch-section');
+        this.updateUI();
     }
 
     resetFromBatch() {
@@ -1719,6 +1719,20 @@ class CurriculumApp {
             if (streamSelect) streamSelect.value = this.selections.stream || '';
             if (semesterSelect) semesterSelect.value = this.selections.semester || '';
         } catch (error) {}
+    }
+
+    updateUI() {
+        // Show welcome popup only on first visit
+        if (!localStorage.getItem('iterCurriculumWelcomeDismissed')) {
+            this.showPopup();
+        }
+        // Ensure additional resources are loaded if in viewer-section
+        if (this.currentSection === 'viewer-section') {
+            this.loadOthersFiles();
+        }
+        // Hide global error if visible
+        const errorPopup = document.getElementById('global-error-popup');
+        if (errorPopup) errorPopup.classList.remove('active');
     }
 }
 let app;
