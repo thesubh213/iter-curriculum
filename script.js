@@ -356,6 +356,7 @@ class CurriculumApp {
         const images = await this.discoverSemesterImages(value);
         if (images.length === 0) {
             this.selections.semester = '';
+            this.isViewingAdditionalFile = false;
             this.updateMainDropdowns();
             this.hideLoadingPopup();
             this.showSection('semester-section');
@@ -1733,6 +1734,10 @@ class CurriculumApp {
         // Hide global error if visible
         const errorPopup = document.getElementById('global-error-popup');
         if (errorPopup) errorPopup.classList.remove('active');
+    }
+
+    loadSavedState() {
+        // No-op: Prevents errors on first load. Implement state loading here if needed.
     }
 }
 let app;
