@@ -2,21 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>ITER Curriculum</title>
-    
-    <meta http-equiv="Cache-Control" content="public, max-age=31536000">
-    <meta http-equiv="Expires" content="31536000">
+    <meta name="description" content="Interactive curriculum viewer for ITER students.">
     <meta name="theme-color" content="#8b7d6b">
-    
-    <link rel="preload" href="style.css" as="style">
-    <link rel="preload" href="script.js" as="script">
-    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="HandheldFriendly" content="true">
+    <meta name="apple-touch-fullscreen" content="yes">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
-    
     <link rel="manifest" href="manifest.json">
-    
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" media="all" />
+    <link rel="preload" href="style.css" as="style">
+    <link rel="modulepreload" href="script.js">
 </head>
 <body>
     <div class="container">
@@ -27,11 +27,7 @@
                 <div id="viewer-header-line2" class="viewer-header-line"></div>
             </div>
             <div class="header-options" id="header-options" style="display:none;">
-                <div class="hamburger" id="hamburger">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
+                <button class="btn btn-secondary" id="reset-selection-btn">Reset Selection</button>
             </div>
         </header>
 
@@ -196,7 +192,6 @@
             </div>
         </main>
 
-        <!-- Global Loading Popup -->
         <div class="image-loading" id="image-loading">
             <div class="loading-container">
                 <div class="spinner"></div>
@@ -204,98 +199,6 @@
                 <div class="progress-container">
                     <div class="progress-bar">
                         <div class="progress-fill" id="loading-progress"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="overlay" id="overlay">
-            <div class="overlay-content">
-                <div class="overlay-header">
-                    <h2>Curriculum</h2>
-                    <p>Options</p>
-                </div>
-                
-                <div class="overlay-body">
-                    <div class="overlay-grid">
-                        <div class="overlay-dropdown">
-                            <label for="overlay-batch">
-                                <span class="label-icon">📅</span>
-                                Admission Batch
-                            </label>
-                            <div class="dropdown-wrapper">
-                                <select id="overlay-batch" class="dropdown">
-                                    <option value="">Choose Batch</option>
-                                    <option value="2024">2024</option>
-                                    <option value="2023">2023</option>
-                                    <option value="2022">2022</option>
-                                    <option value="2021">2021</option>
-                                    <option value="2020">2020</option>
-                                </select>
-                                <div class="dropdown-icon">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M7 10l5 5 5-5z"/>
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="overlay-dropdown">
-                            <label for="overlay-stream">
-                                <span class="label-icon">🎓</span>
-                                Stream
-                            </label>
-                            <div class="dropdown-wrapper">
-                                <select id="overlay-stream" class="dropdown">
-                                    <option value="">Choose Stream</option>
-                                    <option value="CE">Civil Engineering (CE)</option>
-                                    <option value="ME">Mechanical Engineering (ME)</option>
-                                    <option value="EE">Electrical Engineering (EE)</option>
-                                    <option value="EEE">Electrical & Electronics Engineering (EEE)</option>
-                                    <option value="ECE">Electronics & Communication Engineering (ECE)</option>
-                                    <option value="CSE">Computer Science & Engineering (CSE)</option>
-                                    <option value="CS-IT">Computer Science and Information Technology (CS-IT)</option>
-                                    <option value="CSE-AIML">CSE - Artificial Intelligence and Machine Learning (CSE-AIML)</option>
-                                    <option value="CSE-CS">CSE - Cyber Security (CSE-CS)</option>
-                                    <option value="CSE-DS">CSE - Data Science (CSE-DS)</option>
-                                    <option value="CSE-IOT">CSE - Internet of Things (CSE-IOT)</option>
-                                </select>
-                                <div class="dropdown-icon">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M7 10l5 5 5-5z"/>
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="overlay-dropdown">
-                            <label for="overlay-semester">
-                                <span class="label-icon">📚</span>
-                                Semester
-                            </label>
-                            <div class="dropdown-wrapper">
-                                <select id="overlay-semester" class="dropdown">
-                                    <option value="">Choose Semester</option>
-                                    <option value="1">Semester 1</option>
-                                    <option value="2">Semester 2</option>
-                                    <option value="3">Semester 3</option>
-                                    <option value="4">Semester 4</option>
-                                    <option value="5">Semester 5</option>
-                                    <option value="6">Semester 6</option>
-                                    <option value="7">Semester 7</option>
-                                    <option value="8">Semester 8</option>
-                                </select>
-                                <div class="dropdown-icon">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M7 10l5 5 5-5z"/>
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="overlay-actions">
-                        <button class="btn btn-primary" id="apply-changes">Apply Changes</button>
                     </div>
                 </div>
             </div>
@@ -326,6 +229,7 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="config.js" defer></script>
+    <script src="script.js" type="module" defer></script>
 </body>
 </html>

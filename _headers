@@ -3,22 +3,34 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: *
 
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
+  Access-Control-Allow-Origin: *
 
 /style.css
   Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
 
 /script.js
   Cache-Control: public, max-age=31536000, immutable
+  Content-Type: text/javascript; charset=UTF-8
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: *
 
 /sw.js
   Cache-Control: public, max-age=0, must-revalidate
+  Access-Control-Allow-Origin: *
 
 /manifest.json
   Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
 
 /images/*
   Cache-Control: public, max-age=31536000, immutable
-  X-Content-Type-Options: nosniff 
+  X-Content-Type-Options: nosniff
+  Access-Control-Allow-Origin: * 

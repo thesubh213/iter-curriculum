@@ -1,5 +1,5 @@
 const CACHE_NAME = 'iter-curriculum-v2';
-const IMAGE_CACHE_NAME = 'iter-images-v2';
+const IMAGE_CACHE_NAME = 'iter-images-v3';
 
 const STATIC_FILES = [
     '/',
@@ -10,17 +10,20 @@ const STATIC_FILES = [
 ];
 
 self.addEventListener('install', (event) => {
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
-                return cache.addAll(STATIC_FILES).catch(error => {
-                    console.warn('Some files failed to cache:', error);
-                });
+                return cache.addAll(STATIC_FILES);
+            })
+            .catch((error) => {
+                // Some files failed to cache silently
             })
     );
 });
 
 self.addEventListener('activate', (event) => {
+    self.clients.claim();
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
@@ -38,7 +41,24 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
     
     if (event.request.destination === 'image' || url.pathname.includes('/images/')) {
-        event.respondWith(handleImageRequest(event.request));
+        event.respondWith(
+            caches.open(IMAGE_CACHE_NAME).then(async cache => {
+                const cached = await cache.match(event.request);
+                if (cached) {
+                    event.waitUntil(fetch(event.request).then(response => {
+                        if (response.status === 200) cache.put(event.request, response.clone());
+                    }).catch(() => {}));
+                    return cached;
+                }
+                try {
+                    const response = await fetch(event.request, { cache: 'reload' });
+                    if (response.status === 200) cache.put(event.request, response.clone());
+                    return response;
+                } catch {
+                    return new Response('Image not available', { status: 404, headers: { 'Content-Type': 'text/plain' } });
+                }
+            })
+        );
         return;
     }
     
@@ -46,42 +66,11 @@ self.addEventListener('fetch', (event) => {
         event.respondWith(
             caches.match(event.request)
                 .then((response) => {
-                    return response || fetch(event.request).catch(() => {
-                        if (event.request.destination === 'document') {
-                            return caches.match('index.html');
-                        }
-                        return new Response('Not found', { status: 404 });
-                    });
+                    return response || fetch(event.request);
                 })
         );
     }
 });
-
-async function handleImageRequest(request) {
-    const imageCache = await caches.open(IMAGE_CACHE_NAME);
-    
-    const cachedResponse = await imageCache.match(request);
-    if (cachedResponse) {
-        return cachedResponse;
-    }
-    
-    try {
-        const networkResponse = await fetch(request);
-        
-        if (networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            imageCache.put(request, responseToCache);
-        }
-        
-        return networkResponse;
-    } catch (error) {
-        console.error('Failed to fetch image:', error);
-        return new Response('Image not available', { 
-            status: 404,
-            headers: { 'Content-Type': 'text/plain' }
-        });
-    }
-}
 
 self.addEventListener('sync', (event) => {
     if (event.tag === 'preload-images') {
