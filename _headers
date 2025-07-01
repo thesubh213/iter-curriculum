@@ -6,14 +6,17 @@
   Access-Control-Allow-Origin: *
   Access-Control-Allow-Methods: GET, OPTIONS
   Access-Control-Allow-Headers: *
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
   Access-Control-Allow-Origin: *
+  X-Content-Type-Options: nosniff
 
 /style.css
   Cache-Control: public, max-age=31536000, immutable
   Access-Control-Allow-Origin: *
+  Content-Type: text/css; charset=UTF-8
 
 /script.js
   Cache-Control: public, max-age=31536000, immutable
@@ -25,12 +28,25 @@
 /sw.js
   Cache-Control: public, max-age=0, must-revalidate
   Access-Control-Allow-Origin: *
+  Content-Type: application/javascript; charset=UTF-8
 
 /manifest.json
   Cache-Control: public, max-age=31536000, immutable
   Access-Control-Allow-Origin: *
+  Content-Type: application/manifest+json; charset=UTF-8
+
+/config.js
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
+  Content-Type: text/javascript; charset=UTF-8
 
 /images/*
   Cache-Control: public, max-age=31536000, immutable
   X-Content-Type-Options: nosniff
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: *
+
+/404.html
+  Cache-Control: public, max-age=0, must-revalidate
   Access-Control-Allow-Origin: * 

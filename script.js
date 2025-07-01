@@ -104,8 +104,25 @@ class CurriculumApp {
     async registerServiceWorker() {
         if ('serviceWorker' in navigator) {
             try {
-                await navigator.serviceWorker.register('sw.js');
+                const registration = await navigator.serviceWorker.register('sw.js', {
+                    scope: '/',
+                    updateViaCache: 'none'
+                });
+                
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    if (newWorker) {
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                if (confirm('A new version is available. Reload to update?')) {
+                                    window.location.reload();
+                                }
+                            }
+                        });
+                    }
+                });
             } catch (error) {
+                console.warn('Service worker registration failed:', error);
             }
         }
     }
@@ -315,6 +332,7 @@ class CurriculumApp {
         const streamSelect = document.getElementById('stream-select');
         const batch = batchOverride || (batchSelect ? batchSelect.value : this.selections.batch);
         const stream = streamOverride || (streamSelect ? streamSelect.value : this.selections.stream);
+        
         if (!value || isNaN(Number(value)) || Number(value) < 1 || Number(value) > 8) {
             this.showGlobalError('Invalid semester selected.');
             this.hideLoadingPopup();
@@ -330,48 +348,77 @@ class CurriculumApp {
             this.hideLoadingPopup();
             return;
         }
+        
         this.showLoadingPopup('Preparing curriculum...');
-        await new Promise(resolve => {
-            setTimeout(() => {
-                const loadingElement = document.getElementById('image-loading');
-                if (loadingElement) {
-                    loadingElement.style.display = 'block';
-                    loadingElement.style.visibility = 'visible';
-                    loadingElement.style.opacity = '1';
-                    loadingElement.style.zIndex = '9999';
-                }
-                resolve();
-            }, 10);
-        });
-        this.selections.semester = value;
-        this.selections.batch = batch;
-        this.selections.stream = stream;
-        this.setupLoadingSteps([
-            { name: 'Preparing curriculum...', weight: 25 },
-            { name: 'Discovering curriculum images for selected year...', weight: 25 },
-            { name: 'Loading additional files...', weight: 25 },
-            { name: 'Preloading images for smooth navigation...', weight: 25 }
-        ]);
-        this.updateLoadingStep(0);
-        const images = await this.discoverSemesterImages(value);
-        if (images.length === 0) {
-            this.selections.semester = '';
-            this.isViewingAdditionalFile = false;
-            this.updateMainDropdowns();
+        
+        const loadingTimeout = setTimeout(() => {
             this.hideLoadingPopup();
+            this.showGlobalError('Loading timeout. Please try again.');
             this.showSection('semester-section');
-            return;
+        }, this.appConfig.loadingTimeout || 15000);
+        
+        try {
+            await new Promise(resolve => {
+                setTimeout(() => {
+                    const loadingElement = document.getElementById('image-loading');
+                    if (loadingElement) {
+                        loadingElement.style.display = 'block';
+                        loadingElement.style.visibility = 'visible';
+                        loadingElement.style.opacity = '1';
+                        loadingElement.style.zIndex = '9999';
+                    }
+                    resolve();
+                }, 10);
+            });
+            
+            this.selections.semester = value;
+            this.selections.batch = batch;
+            this.selections.stream = stream;
+            
+            this.setupLoadingSteps([
+                { name: 'Preparing curriculum...', weight: 25 },
+                { name: 'Discovering curriculum images for selected year...', weight: 25 },
+                { name: 'Loading additional files...', weight: 25 },
+                { name: 'Preloading images for smooth navigation...', weight: 25 }
+            ]);
+            
+            this.updateLoadingStep(0);
+            const images = await this.discoverSemesterImages(value);
+            
+            if (images.length === 0) {
+                this.selections.semester = '';
+                this.isViewingAdditionalFile = false;
+                this.updateMainDropdowns();
+                this.hideLoadingPopup();
+                this.showSection('semester-section');
+                return;
+            }
+            
+            this.saveState();
+            await this.loadCurriculumImages();
+            this.updateNavigationControls();
+            this.showSection('viewer-section');
+            
+        } catch (error) {
+            console.error('Error in handleSemesterChange:', error);
+            this.hideLoadingPopup();
+            this.showGlobalError('Error loading curriculum: ' + (error && error.message ? error.message : 'Unknown error'));
+            this.showSection('semester-section');
+        } finally {
+            clearTimeout(loadingTimeout);
+            this.hideLoadingPopup();
         }
-        this.saveState();
-        await this.loadCurriculumImages();
-        this.updateNavigationControls();
-        this.showSection('viewer-section');
-        this.hideLoadingPopup();
     }
 
     async discoverSemesterImages(semester) {
         try {
             const { stream, batch } = this.selections;
+            
+            if (!stream || !batch) {
+                console.error('Missing stream or batch for image discovery');
+                return [];
+            }
+            
             const images = [];
             let streamFolder = stream.toLowerCase();
             const patterns = [
@@ -379,28 +426,46 @@ class CurriculumApp {
                 `${streamFolder}-sem${semester}-1.webp`,
                 `${streamFolder}-sem${semester}-2.webp`,
                 `${streamFolder}-sem${semester}-3.webp`,
+                `${streamFolder}-sem${semester}.png`,
+                `${streamFolder}-sem${semester}-1.png`,
+                `${streamFolder}-sem${semester}-2.png`,
+                `${streamFolder}-sem${semester}-3.png`,
             ];
-            for (const pattern of patterns) {
-                const imagePath = `images/${batch}/${streamFolder}/${pattern}`;
-                if (await this.imageExists(imagePath)) {
-                    images.push({
-                        path: imagePath,
-                        name: this.formatImageName(pattern),
-                        type: 'semester'
-                    });
+            
+            const discoveryTimeout = setTimeout(() => {
+                console.warn('Image discovery timeout');
+            }, 5000);
+            
+            try {
+                for (const pattern of patterns) {
+                    const imagePath = `images/${batch}/${streamFolder}/${pattern}`;
+                    try {
+                        if (await this.imageExists(imagePath)) {
+                            images.push({
+                                path: imagePath,
+                                name: this.formatImageName(pattern),
+                                type: 'semester'
+                            });
+                        }
+                    } catch (imageError) {
+                        console.warn('Error checking image:', imagePath, imageError);
+                    }
                 }
+            } finally {
+                clearTimeout(discoveryTimeout);
             }
+            
             if (images.length === 0) {
-                this.hideLoadingPopup();
                 const message = this.missingFolderConfig.customMessages.missingSemester
                     .replace('{stream}', this.getStreamDisplayName())
                     .replace('{semester}', semester)
                     .replace('{year}', batch);
                 this.showMissingFolderPopup(message);
             }
+            
             return images;
         } catch (error) {
-            this.hideLoadingPopup();
+            console.error('Error in discoverSemesterImages:', error);
             const { stream, batch } = this.selections;
             const message = this.missingFolderConfig.customMessages.missingSemester
                 .replace('{stream}', this.getStreamDisplayName())
@@ -426,19 +491,24 @@ class CurriculumApp {
         const files = [];
         const imageExtensions = ['webp', 'png', 'jpg', 'jpeg'];
         const maxFiles = 50;
+        
         for (let i = 1; i <= maxFiles; i++) {
             for (const ext of imageExtensions) {
                 const fileName = `${i}.${ext}`;
                 if (fileName.toLowerCase() === 'desktop.ini') continue;
                 const imagePath = `images/${batch}/${stream}/others/${fileName}`;
-                if (await this.imageExists(imagePath)) {
-                    files.push({
-                        path: imagePath,
-                        name: this.formatFileName(fileName),
-                        value: String(i),
-                        type: 'other'
-                    });
-                    break;
+                try {
+                    if (await this.imageExists(imagePath)) {
+                        files.push({
+                            path: imagePath,
+                            name: this.formatFileName(fileName),
+                            value: String(i),
+                            type: 'other'
+                        });
+                        break; 
+                    }
+                } catch (error) {
+                    console.warn('Error checking file:', imagePath, error);
                 }
             }
         }
@@ -447,6 +517,10 @@ class CurriculumApp {
 
     formatFileName(fileName) {
         const nameWithoutExtension = fileName.replace(/\.(webp|png|jpg|jpeg)$/i, '');
+        
+        if (/^\d+$/.test(nameWithoutExtension)) {
+            return `File ${nameWithoutExtension}`;
+        }
         
         return nameWithoutExtension
             .split(/[-_\s]+/)
@@ -464,30 +538,48 @@ class CurriculumApp {
             try {
                 const img = new Image();
                 let timedOut = false;
+                let resolved = false;
+                
+                const timeout = Math.min(this.appConfig.loadingTimeout || 10000, 2000);
+                
                 const timer = setTimeout(() => {
-                    timedOut = true;
-                    resolve(false);
-                }, this.appConfig.loadingTimeout || 10000);
+                    if (!resolved) {
+                        timedOut = true;
+                        resolved = true;
+                        resolve(false);
+                    }
+                }, timeout);
+                
+                const cleanup = () => {
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timer);
+                    }
+                };
                 
                 img.onload = () => {
-                    if (!timedOut) {
-                        clearTimeout(timer);
+                    if (!timedOut && !resolved) {
+                        cleanup();
                         resolve(true);
                     }
                 };
                 
                 img.onerror = () => {
-                    if (!timedOut) {
-                        clearTimeout(timer);
+                    if (!timedOut && !resolved) {
+                        cleanup();
                         resolve(false);
                     }
                 };
                 
+                img.crossOrigin = 'anonymous';
+                
+                const cacheBustedPath = this.addCacheBuster(imagePath);
+                
                 try {
-                    img.src = imagePath;
+                    img.src = cacheBustedPath;
                 } catch (srcError) {
-                    if (!timedOut) {
-                        clearTimeout(timer);
+                    if (!timedOut && !resolved) {
+                        cleanup();
                         resolve(false);
                     }
                 }
@@ -498,7 +590,7 @@ class CurriculumApp {
     }
 
     formatImageName(fileName) {
-        const match = fileName.match(/([a-z-]+)-sem(\d+)(?:-(\d+))?\.webp/);
+        const match = fileName.match(/([a-z-]+)-sem(\d+)(?:-(\d+))?\.(webp|png)/);
         if (match) {
             let stream = match[1].toLowerCase();
             const sem = match[2];
@@ -525,80 +617,143 @@ class CurriculumApp {
     }
 
     async preloadImage(imagePath) {
-            if (this.imageCache.has(imagePath)) {
-                return this.imageCache.get(imagePath);
-            }
-            return new Promise((resolve, reject) => {
-                    const img = new Image();
+        if (this.imageCache.has(imagePath)) {
+            return this.imageCache.get(imagePath);
+        }
+        
+        return new Promise((resolve, reject) => {
+            const img = new Image();
             img.decoding = 'async';
             img.loading = 'eager';
             img.fetchPriority = 'high';
-                    let timedOut = false;
-                    const timer = setTimeout(() => {
-                        timedOut = true;
-                        reject(new Error('Image load timeout'));
-                    }, this.appConfig.loadingTimeout || 10000);
-                    img.onload = () => {
-                        if (!timedOut) {
-                            clearTimeout(timer);
-                                this.imageCache.set(imagePath, img);
-                                resolve(img);
-                        }
-                    };
-                    img.onerror = () => {
-                        if (!timedOut) {
-                            clearTimeout(timer);
-                            reject(new Error('Failed to load image: ' + imagePath));
-                        }
-                    };
-                        img.src = imagePath;
+            img.crossOrigin = 'anonymous';
+            
+            let timedOut = false;
+            let resolved = false;
+            
+            const timer = setTimeout(() => {
+                if (!resolved) {
+                    timedOut = true;
+                    resolved = true;
+                    reject(new Error('Image load timeout'));
+                }
+            }, this.appConfig.loadingTimeout || 10000);
+            
+            const cleanup = () => {
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timer);
+                }
+            };
+            
+            img.onload = () => {
+                if (!timedOut && !resolved) {
+                    cleanup();
+                    this.imageCache.set(imagePath, img);
+                    resolve(img);
+                }
+            };
+            
+            img.onerror = () => {
+                if (!timedOut && !resolved) {
+                    cleanup();
+                    reject(new Error('Failed to load image: ' + imagePath));
+                }
+            };
+            
+            try {
+                img.src = imagePath;
+            } catch (srcError) {
+                if (!timedOut && !resolved) {
+                    cleanup();
+                    reject(new Error('Failed to set image source: ' + imagePath));
+                }
+            }
         });
     }
 
     async preloadImageSet(imageSet) {
         if (!imageSet || imageSet.length === 0) return;
-        const concurrency = navigator.hardwareConcurrency ? Math.max(2, Math.floor(navigator.hardwareConcurrency / 2)) : 4;
-        let index = 0;
-        const preloadNext = async () => {
-            if (index >= imageSet.length) return;
-            const current = index++;
-            await this.preloadImage(imageSet[current].path).catch(() => {});
-            await preloadNext();
-        };
-        const tasks = [];
-        for (let i = 0; i < concurrency; i++) tasks.push(preloadNext());
-        await Promise.all(tasks);
+        
+        const maxConcurrency = navigator.hardwareConcurrency ? 
+            Math.min(4, Math.max(2, Math.floor(navigator.hardwareConcurrency / 2))) : 3;
+        
+        const chunkSize = Math.min(maxConcurrency, imageSet.length);
+        const chunks = [];
+        
+        for (let i = 0; i < imageSet.length; i += chunkSize) {
+            chunks.push(imageSet.slice(i, i + chunkSize));
+        }
+        
+        for (const chunk of chunks) {
+            const promises = chunk.map(imageInfo => 
+                this.preloadImage(imageInfo.path).catch(error => {
+                    return null;
+                })
+            );
+            
+            await Promise.all(promises);
+            
+            if (chunks.length > 1) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        }
     }
 
     async loadImageWithCache(imagePath) {
         if (this.imageCache.has(imagePath)) {
             return this.imageCache.get(imagePath);
         }
+        
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.decoding = 'async';
             img.loading = 'eager';
             img.fetchPriority = 'high';
+            img.crossOrigin = 'anonymous';
+            
             let timedOut = false;
+            let resolved = false;
+            
             const timer = setTimeout(() => {
-                timedOut = true;
-                reject(new Error('Image load timeout'));
+                if (!resolved) {
+                    timedOut = true;
+                    resolved = true;
+                    reject(new Error('Image load timeout'));
+                }
             }, this.appConfig.loadingTimeout || 10000);
-            img.onload = () => {
-                if (!timedOut) {
+            
+            const cleanup = () => {
+                if (!resolved) {
+                    resolved = true;
                     clearTimeout(timer);
+                }
+            };
+            
+            img.onload = () => {
+                if (!timedOut && !resolved) {
+                    cleanup();
                     this.imageCache.set(imagePath, img);
                     this.clearOldCache();
                     resolve(img);
                 }
             };
+            
             img.onerror = () => {
-                if (!timedOut) {
-                    clearTimeout(timer);
+                if (!timedOut && !resolved) {
+                    cleanup();
                     reject(new Error(`Failed to load image: ${imagePath}`));
                 }
             };
-            img.src = this.addCacheBuster(imagePath);
+            
+            try {
+                img.src = this.addCacheBuster(imagePath);
+            } catch (srcError) {
+                if (!timedOut && !resolved) {
+                    cleanup();
+                    reject(new Error(`Failed to set image source: ${imagePath}`));
+                }
+            }
         });
     }
 
@@ -667,52 +822,64 @@ class CurriculumApp {
     addCacheBuster(imagePath) {
         try {
             const separator = imagePath.includes('?') ? '&' : '?';
-            return `${imagePath}${separator}t=${Date.now()}`;
+            const timestamp = Math.floor(Date.now() / 60000); 
+            return `${imagePath}${separator}v=${timestamp}`;
         } catch (error) {
             return imagePath;
         }
     }
 
     async loadImageByIndex(index) {
-            let targetImageSet = this.isViewingAdditionalFile ? this.otherFiles : this.currentImageSet;
-            if (index >= 0 && index < targetImageSet.length) {
-                this.currentImageIndex = index;
-                const imageInfo = targetImageSet[index];
-                const image = document.getElementById('curriculum-image');
-                if (!image) {
-                    this.hideLoadingPopup();
-                    return;
-                }
-                    image.src = '';
-                    this.updateLoadingPopupProgress(95);
-            try {
-                await this.loadImageWithRetry(imageInfo.path);
-                    image.src = this.addCacheBuster(imageInfo.path);
-                    if (this.isViewingAdditionalFile) {
-                        this.updateViewerHeaderInfo(imageInfo.name, 'Additional Resource');
-                    } else {
-                        this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
-                    }
-                    this.resetImageTransform();
-                    if (!this.isViewingAdditionalFile) {
-                    if (window.requestIdleCallback) {
-                        requestIdleCallback(() => this.preloadAdjacentImages(index));
-                    } else {
-                        setTimeout(() => this.preloadAdjacentImages(index), 100);
-                    }
-                }
-                    this.lastViewedImagePath = imageInfo.path;
-                    this.saveState();
-                    this.updateLoadingPopupProgress(100);
-                    this.hideLoadingPopup();
-                    this.updateNavigationControls();
-                } catch (error) {
-                        this.hideLoadingPopup();
-                this.showGlobalError('Error loading image: ' + (error && error.message ? error.message : 'Unknown error'));
-                this.showSection('semester-section');
-                }
+        let targetImageSet = this.isViewingAdditionalFile ? this.otherFiles : this.currentImageSet;
+        
+        if (index < 0 || index >= targetImageSet.length) {
+            console.warn('Invalid image index:', index);
+            return;
+        }
+        
+        this.currentImageIndex = index;
+        const imageInfo = targetImageSet[index];
+        const image = document.getElementById('curriculum-image');
+        
+        if (!image) {
+            console.error('Curriculum image element not found');
+            return;
+        }
+        
+        try {
+            image.src = '';
+            this.updateLoadingPopupProgress(95);
+            
+            await this.loadImageWithRetry(imageInfo.path);
+            
+            image.src = this.addCacheBuster(imageInfo.path);
+            
+            if (this.isViewingAdditionalFile) {
+                this.updateViewerHeaderInfo(imageInfo.name, 'Additional Resource');
             } else {
-            this.hideLoadingPopup();
+                this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
+            }
+            
+            this.resetImageTransform();
+            
+            if (!this.isViewingAdditionalFile) {
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(() => this.preloadAdjacentImages(index));
+                } else {
+                    setTimeout(() => this.preloadAdjacentImages(index), 100);
+                }
+            }
+            
+            this.lastViewedImagePath = imageInfo.path;
+            this.saveState();
+            
+            this.updateLoadingPopupProgress(100);
+            this.updateNavigationControls();
+            
+        } catch (error) {
+            console.error('Error loading image:', error);
+            this.showGlobalError('Error loading image: ' + (error && error.message ? error.message : 'Unknown error'));
+            this.showSection('semester-section');
         }
     }
 
@@ -727,10 +894,20 @@ class CurriculumApp {
             imagesToPreload.push(this.currentImageSet[currentIndex - 1]);
         }
         
+        if (currentIndex + 2 < this.currentImageSet.length) {
+            imagesToPreload.push(this.currentImageSet[currentIndex + 2]);
+        }
+        
         if (imagesToPreload.length > 0) {
-            setTimeout(() => {
-                this.preloadImageSet(imagesToPreload);
-            }, 1000);
+            if (window.requestIdleCallback) {
+                requestIdleCallback(() => {
+                    this.preloadImageSet(imagesToPreload);
+                }, { timeout: 2000 });
+            } else {
+                setTimeout(() => {
+                    this.preloadImageSet(imagesToPreload);
+                }, 500);
+            }
         }
     }
 
@@ -951,6 +1128,24 @@ class CurriculumApp {
             const modal = document.getElementById('others-modal');
             if (modal) modal.classList.remove('active');
         } catch (error) {
+        }
+    }
+
+    backToCurriculum() {
+        try {
+            if (this.isViewingAdditionalFile) {
+                this.isViewingAdditionalFile = false;
+                this.currentImageSet = this.previousCurriculumImageSet;
+                this.currentImageIndex = this.previousCurriculumIndex;
+                
+                if (this.currentImageSet.length > 0 && this.currentImageIndex < this.currentImageSet.length) {
+                    this.loadImageByIndex(this.currentImageIndex);
+                } else {
+                    this.showSection('semester-section');
+                }
+            }
+        } catch (error) {
+            this.showSection('semester-section');
         }
     }
 
@@ -1540,148 +1735,155 @@ class CurriculumApp {
                 { name: 'Loading current image...', weight: 25 }
             ]);
         }
+        
         try {
             const { stream, semester } = this.selections;
-            if (this.currentLoadingStep === 0) {
-                this.updateLoadingStep(0);
-            }
+            
+            this.updateLoadingStep(0);
             this.currentImageSet = await this.discoverSemesterImages(semester);
             this.currentImageIndex = 0;
+            
+            if (this.currentImageSet.length === 0) {
+                this.hideLoadingPopup();
+                this.selections.semester = '';
+                this.isViewingAdditionalFile = false;
+                this.updateMainDropdowns();
+                this.showSection('semester-section');
+                return;
+            }
+            
             this.updateLoadingStep(1);
             const othersLoadPromise = this.loadOthersFiles();
+            
             this.updateLoadingStep(2);
-            if (this.currentImageSet.length > 0) {
-                const preloadPromise = this.preloadImageSet(this.currentImageSet);
-                this.updateLoadingStep(3);
-                try {
+            const preloadPromise = this.preloadImageSet(this.currentImageSet);
+            
+            this.updateLoadingStep(3);
+            
+            try {
+                await othersLoadPromise;
+                
+                let targetIndex = 0;
+                
                 if (this.isViewingAdditionalFile && this.lastViewedImagePath) {
                     const fileIndex = this.otherFiles.findIndex(file => file.path === this.lastViewedImagePath);
                     if (fileIndex >= 0) {
                         this.currentImageSet = this.otherFiles;
                         this.currentImageIndex = fileIndex;
-                        await this.loadImageByIndex(fileIndex);
+                        targetIndex = fileIndex;
                     } else {
                         this.isViewingAdditionalFile = false;
                         this.currentImageSet = await this.discoverSemesterImages(semester);
-                        if (this.previousCurriculumIndex < this.currentImageSet.length) {
-                            await this.loadImageByIndex(this.previousCurriculumIndex);
-                        } else {
-                            await this.loadImageByIndex(0);
-                        }
+                        targetIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
+                            this.previousCurriculumIndex : 0;
                     }
                 } else if (this.lastViewedImagePath) {
                     const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
                     if (imageIndex !== -1) {
-                        await this.loadImageByIndex(imageIndex);
+                        targetIndex = imageIndex;
                     } else if (this.currentImageIndex < this.currentImageSet.length) {
-                        await this.loadImageByIndex(this.currentImageIndex);
-                    } else {
-                        await this.loadImageByIndex(0);
+                        targetIndex = this.currentImageIndex;
                     }
                 } else if (this.currentImageIndex < this.currentImageSet.length) {
-                    await this.loadImageByIndex(this.currentImageIndex);
-                } else {
-                    await this.loadImageByIndex(0);
+                    targetIndex = this.currentImageIndex;
                 }
-                await Promise.all([othersLoadPromise, preloadPromise]);
-                    this.showSection('viewer-section');
-                    this.hideLoadingPopup();
-                } catch (error) {
-                    this.hideLoadingPopup();
-                    this.showGlobalError('Error loading image: ' + (error && error.message ? error.message : 'Unknown error'));
-                    this.showSection('semester-section');
-                }
-            } else {
+                
+                await this.loadImageByIndex(targetIndex);
+                
+                await preloadPromise;
+                
+                this.showSection('viewer-section');
+                this.updateNavigationControls();
+                
+            } catch (error) {
                 this.hideLoadingPopup();
+                this.showGlobalError('Error loading image: ' + (error && error.message ? error.message : 'Unknown error'));
+                this.showSection('semester-section');
+                return;
             }
+            
             this.isFirstLoad = false;
+            
         } catch (error) {
             this.hideLoadingPopup();
             this.showGlobalError('Error loading curriculum: ' + (error && error.message ? error.message : 'Unknown error'));
             this.loadingSteps = [];
             this.currentLoadingStep = 0;
             this.showSection('semester-section');
+            return;
         }
+        
         this.hideLoadingPopup();
     }
 
-    updateOverlaySemesterDropdown() {
-        try {
-            const overlayBatch = document.getElementById('overlay-batch');
-            const overlayStream = document.getElementById('overlay-stream');
-            const overlaySemester = document.getElementById('overlay-semester');
-            if (!overlayBatch || !overlayStream || !overlaySemester) return;
-            const batch = overlayBatch.value;
-            const stream = overlayStream.value;
-            let valid = this.missingFolderConfig.supportedYears.includes(batch) &&
-                        this.missingFolderConfig.supportedStreams.includes((stream + '').toLowerCase());
-            const currentValue = overlaySemester.value;
-            overlaySemester.innerHTML = '';
-            if (valid) {
-                let found = false;
-                for (let i = 1; i <= 8; i++) {
-                    const option = document.createElement('option');
-                    option.value = String(i);
-                    option.textContent = `Semester ${i}`;
-                    if (String(i) === currentValue) {
-                        option.selected = true;
-                        found = true;
-                    }
-                    overlaySemester.appendChild(option);
-                }
-                if (found) {
-                    overlaySemester.value = currentValue;
-                } else {
-                    overlaySemester.value = '';
-                }
-                overlaySemester.disabled = false;
-            } else {
-                const option = document.createElement('option');
-                option.value = '';
-                option.textContent = 'Select semester';
-                overlaySemester.appendChild(option);
-                overlaySemester.value = '';
-                overlaySemester.disabled = true;
-            }
-        } catch (error) {}
-    }
+
 
     async showViewerForCurrentSelection() {
         const batchSelect = document.getElementById('batch-select');
         const streamSelect = document.getElementById('stream-select');
         const semesterSelect = document.getElementById('semester-select');
+        
         const batch = batchSelect ? batchSelect.value : this.selections.batch;
         const stream = streamSelect ? streamSelect.value : this.selections.stream;
         const semester = semesterSelect ? semesterSelect.value : this.selections.semester;
-        if (batch && stream && semester) {
+        
+        if (!batch || !stream || !semester) {
+            return;
+        }
+        
+        const loadingTimeout = setTimeout(() => {
+            this.hideLoadingPopup();
+            this.showGlobalError('Loading timeout. Please try again.');
+            this.showSection('semester-section');
+        }, this.appConfig.loadingTimeout || 15000);
+        
+        try {
             this.showLoadingPopup('Loading curriculum...');
             this.setupLoadingSteps([
-                { name: 'Discovering curriculum images for selected year...', weight: 25 },
+                { name: 'Discovering curriculum images...', weight: 25 },
                 { name: 'Loading additional files...', weight: 25 },
-                { name: 'Preloading images for smooth navigation...', weight: 25 },
+                { name: 'Preloading images...', weight: 25 },
                 { name: 'Loading current image...', weight: 25 }
             ]);
+            
             this.updateLoadingStep(0);
             this.selections.batch = batch;
             this.selections.stream = stream;
             this.selections.semester = semester;
+            
             const images = await this.discoverSemesterImages(semester);
             this.currentImageSet = images;
             this.currentImageIndex = 0;
-            this.updateLoadingStep(1);
-            await this.loadOthersFiles();
-            if (this.currentImageSet.length > 0) {
-                this.updateLoadingStep(2);
-                await this.preloadImageSet(this.currentImageSet);
-                this.updateLoadingStep(3);
-                await this.loadImageByIndex(0);
-                this.updateNavigationControls();
-                this.showSection('viewer-section');
-            } else {
+            
+            if (this.currentImageSet.length === 0) {
                 this.selections.semester = '';
                 this.updateMainDropdowns();
                 this.showSection('semester-section');
+                return;
             }
+            
+            this.updateLoadingStep(1);
+            const othersLoadPromise = this.loadOthersFiles();
+            
+            this.updateLoadingStep(2);
+            const preloadPromise = this.preloadImageSet(this.currentImageSet);
+            
+            this.updateLoadingStep(3);
+            await othersLoadPromise;
+            await this.loadImageByIndex(0);
+            await preloadPromise;
+            
+            this.updateNavigationControls();
+            this.showSection('viewer-section');
+            
+        } catch (error) {
+            console.error('Error in showViewerForCurrentSelection:', error);
+            this.hideLoadingPopup();
+            this.showGlobalError('Error loading curriculum: ' + (error && error.message ? error.message : 'Unknown error'));
+            this.showSection('semester-section');
+        } finally {
+            clearTimeout(loadingTimeout);
+            this.hideLoadingPopup();
         }
     }
 
@@ -1723,21 +1925,116 @@ class CurriculumApp {
     }
 
     updateUI() {
-        // Show welcome popup only on first visit
         if (!localStorage.getItem('iterCurriculumWelcomeDismissed')) {
             this.showPopup();
         }
-        // Ensure additional resources are loaded if in viewer-section
         if (this.currentSection === 'viewer-section') {
             this.loadOthersFiles();
         }
-        // Hide global error if visible
         const errorPopup = document.getElementById('global-error-popup');
         if (errorPopup) errorPopup.classList.remove('active');
     }
 
+    saveState() {
+        try {
+            const state = {
+                batch: this.selections.batch,
+                stream: this.selections.stream,
+                semester: this.selections.semester,
+                currentImageIndex: this.currentImageIndex,
+                lastViewedImagePath: this.lastViewedImagePath,
+                isViewingAdditionalFile: this.isViewingAdditionalFile,
+                imageScale: this.imageScale,
+                imagePosition: this.imagePosition
+            };
+            localStorage.setItem('iterCurriculumState', JSON.stringify(state));
+        } catch (error) {
+        }
+    }
+
+    updateViewerHeaderInfo(imageName, subtitle) {
+        try {
+            const viewerHeaderInfo = document.getElementById('viewer-header-info');
+            if (viewerHeaderInfo) {
+                const titleElement = viewerHeaderInfo.querySelector('.viewer-title');
+                const subtitleElement = viewerHeaderInfo.querySelector('.viewer-subtitle');
+                
+                if (titleElement) {
+                    titleElement.textContent = imageName || 'Curriculum Image';
+                }
+                if (subtitleElement) {
+                    subtitleElement.textContent = subtitle || '';
+                }
+            }
+        } catch (error) {
+        }
+    }
+
+    clearOldCache() {
+        try {
+            const maxSize = this.appConfig.maxCacheSize || 50;
+            if (this.imageCache.size > maxSize) {
+                const entries = Array.from(this.imageCache.entries());
+                const toDelete = entries.slice(0, entries.length - maxSize);
+                toDelete.forEach(([key, img]) => {
+                    if (img && img.src) {
+                        img.src = '';
+                    }
+                    this.imageCache.delete(key);
+                });
+                
+                if (window.gc) {
+                    window.gc();
+                }
+            }
+        } catch (error) {
+        }
+    }
+
     loadSavedState() {
-        // No-op: Prevents errors on first load. Implement state loading here if needed.
+        try {
+            const savedState = localStorage.getItem('iterCurriculumState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                this.selections.batch = state.batch || '';
+                this.selections.stream = state.stream || '';
+                this.selections.semester = state.semester || '';
+                this.currentImageIndex = state.currentImageIndex || 0;
+                this.lastViewedImagePath = state.lastViewedImagePath || '';
+                this.isViewingAdditionalFile = state.isViewingAdditionalFile || false;
+                this.imageScale = state.imageScale || 1;
+                this.imagePosition = state.imagePosition || { x: 0, y: 0 };
+                
+                if (this.selections.batch && this.selections.stream && this.selections.semester) {
+                    this.updateMainDropdowns();
+                    this.isLoadingFromState = true;
+                }
+            }
+        } catch (error) {
+        }
+    }
+
+    cleanup() {
+        try {
+            this.imageCache.forEach((img, key) => {
+                if (img && img.src) {
+                    img.src = '';
+                }
+            });
+            this.imageCache.clear();
+            
+            if (this.loadProgressInterval) {
+                clearInterval(this.loadProgressInterval);
+                this.loadProgressInterval = null;
+            }
+            
+            this.currentImageSet = [];
+            this.otherFiles = [];
+            this.isViewingAdditionalFile = false;
+            
+            this.saveState();
+        } catch (error) {
+        }
     }
 }
 let app;
@@ -1759,5 +2056,17 @@ window.addEventListener('resize', () => {
         setTimeout(() => {
             app.ensureToolbarVisibility();
         }, 100);
+    }
+});
+
+window.addEventListener('beforeunload', () => {
+    if (app) {
+        app.cleanup();
+    }
+});
+
+window.addEventListener('pagehide', () => {
+    if (app) {
+        app.cleanup();
     }
 });

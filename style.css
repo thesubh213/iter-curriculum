@@ -1,7 +1,32 @@
+/* Cloudflare Pages Optimizations */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optimize images for Cloudflare Pages CDN */
+img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+/* Ensure smooth scrolling on Cloudflare Pages */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Optimize animations for Cloudflare Pages */
+@media (prefers-reduced-motion: no-preference) {
+    .fade-in, .slide-in {
+        animation-duration: 0.3s;
+        animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
 }
 
 :root {
@@ -95,21 +120,22 @@ body {
     margin-right: 2rem;
 }
 
-.viewer-header-line {
+.viewer-title {
     color: var(--white);
-    font-size: 1rem;
-    font-weight: 600;
+    font-size: 1.25rem;
+    font-weight: 700;
     text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     line-height: 1.2;
     margin-bottom: 0.15em;
     word-break: break-word;
 }
 
-#viewer-header-line2 {
+.viewer-subtitle {
     color: var(--white);
     font-size: 0.95rem;
     font-weight: 400;
     opacity: 0.9;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
 .header-options {
@@ -142,10 +168,10 @@ body {
         font-size: 0.95rem;
         margin-right: 0.25rem;
     }
-    .viewer-header-line {
-        font-size: 0.95rem;
+    .viewer-title {
+        font-size: 1.1rem;
     }
-    #viewer-header-line2 {
+    .viewer-subtitle {
         font-size: 0.85rem;
     }
 }
@@ -460,6 +486,10 @@ body {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+    /* Performance optimizations */
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
 }
 
 .image-viewer.dragging {
@@ -481,6 +511,12 @@ body {
     box-shadow: var(--shadow-xl);
     filter: sepia(0.2) hue-rotate(10deg) saturate(0.9) brightness(0.98) contrast(1.05);
     touch-action: none;
+    /* Performance optimizations */
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
 }
 
 .image-loading {

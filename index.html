@@ -16,15 +16,16 @@
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css" media="all" />
     <link rel="preload" href="style.css" as="style">
-    <link rel="modulepreload" href="script.js">
+    <link rel="preload" href="script.js" as="script">
+    <link rel="preload" href="config.js" as="script">
 </head>
 <body>
     <div class="container">
         <header class="header">
             <h1 class="main-title" id="main-title">ITER Curriculum</h1>
             <div id="viewer-header-info" style="display:none;">
-                <div id="viewer-header-line1" class="viewer-header-line"></div>
-                <div id="viewer-header-line2" class="viewer-header-line"></div>
+                <div class="viewer-title" id="viewer-title">Curriculum Image</div>
+                <div class="viewer-subtitle" id="viewer-subtitle"></div>
             </div>
             <div class="header-options" id="header-options" style="display:none;">
                 <button class="btn btn-secondary" id="reset-selection-btn">Reset Selection</button>

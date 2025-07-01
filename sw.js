@@ -1,11 +1,12 @@
-const CACHE_NAME = 'iter-curriculum-v2';
-const IMAGE_CACHE_NAME = 'iter-images-v3';
+const CACHE_NAME = 'iter-curriculum-v3';
+const IMAGE_CACHE_NAME = 'iter-images-v4';
 
 const STATIC_FILES = [
     '/',
     'index.html',
     'style.css',
     'script.js',
+    'config.js',
     'manifest.json'
 ];
 
@@ -40,33 +41,72 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
     
+    // Handle image requests with optimized caching
     if (event.request.destination === 'image' || url.pathname.includes('/images/')) {
         event.respondWith(
             caches.open(IMAGE_CACHE_NAME).then(async cache => {
-                const cached = await cache.match(event.request);
-                if (cached) {
-                    event.waitUntil(fetch(event.request).then(response => {
-                        if (response.status === 200) cache.put(event.request, response.clone());
-                    }).catch(() => {}));
-                    return cached;
-                }
                 try {
-                    const response = await fetch(event.request, { cache: 'reload' });
-                    if (response.status === 200) cache.put(event.request, response.clone());
+                    // Check cache first
+                    const cached = await cache.match(event.request);
+                    if (cached) {
+                        // Update cache in background
+                        event.waitUntil(
+                            fetch(event.request)
+                                .then(response => {
+                                    if (response.status === 200) {
+                                        cache.put(event.request, response.clone());
+                                    }
+                                })
+                                .catch(() => {})
+                        );
+                        return cached;
+                    }
+                    
+                    // Fetch from network
+                    const response = await fetch(event.request, { 
+                        cache: 'reload',
+                        headers: {
+                            'Accept': 'image/webp,image/png,image/jpeg,image/*,*/*;q=0.8'
+                        }
+                    });
+                    
+                    if (response.status === 200) {
+                        cache.put(event.request, response.clone());
+                    }
                     return response;
-                } catch {
-                    return new Response('Image not available', { status: 404, headers: { 'Content-Type': 'text/plain' } });
+                } catch (error) {
+                    // Return a fallback response
+                    return new Response('Image not available', { 
+                        status: 404, 
+                        headers: { 
+                            'Content-Type': 'text/plain',
+                            'Cache-Control': 'no-cache'
+                        } 
+                    });
                 }
             })
         );
         return;
     }
     
-    if (event.request.method === 'GET') {
+    // Handle static files with cache-first strategy
+    if (event.request.method === 'GET' && !url.pathname.includes('/images/')) {
         event.respondWith(
             caches.match(event.request)
                 .then((response) => {
-                    return response || fetch(event.request);
+                    if (response) {
+                        return response;
+                    }
+                    return fetch(event.request).then(response => {
+                        // Cache successful responses for static files
+                        if (response.status === 200 && response.type === 'basic') {
+                            const responseToCache = response.clone();
+                            caches.open(CACHE_NAME).then(cache => {
+                                cache.put(event.request, responseToCache);
+                            });
+                        }
+                        return response;
+                    });
                 })
         );
     }
