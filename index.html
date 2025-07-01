@@ -32,6 +32,55 @@
             </div>
         </header>
 
+        <div class="viewer-controls" id="viewer-controls" style="display:none;">
+            <div class="control-group navigation-group">
+                <button class="control-btn" id="prev-image" title="Previous Image">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                    </svg>
+                </button>
+                <span class="image-counter" id="image-counter">1 / 1</span>
+                <button class="control-btn" id="next-image" title="Next Image">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="control-group tools-group">
+                <button class="control-btn" id="zoom-out" title="Zoom Out">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 13H5v-2h14v2z"/>
+                    </svg>
+                </button>
+                <button class="control-btn" id="reset-zoom" title="Reset View">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </button>
+                <button class="control-btn" id="zoom-in" title="Zoom In">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                </button>
+                <button class="control-btn" id="back-to-curriculum" title="Back to Curriculum" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                    </svg>
+                </button>
+                <button class="control-btn" id="others-btn" title="Additional Files">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                    </svg>
+                </button>
+                <button class="control-btn" id="fullscreen-btn" title="Open in New Tab">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
         <div id="one-time-process-indicator" class="one-time-process-indicator">
             <span class="indicator-icon">⚙️</span>
             <span class="indicator-text">One Time Process</span>
@@ -139,55 +188,6 @@
                 <div class="image-viewer-container">
                     <div class="image-viewer" id="image-viewer">
                         <img id="curriculum-image" src="" alt="Curriculum" draggable="false" />
-                    </div>
-                    
-                    <div class="viewer-controls">
-                        <div class="control-group navigation-group">
-                            <button class="control-btn" id="prev-image" title="Previous Image">
-                                <svg viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-                                </svg>
-                            </button>
-                            <span class="image-counter" id="image-counter">1 / 1</span>
-                            <button class="control-btn" id="next-image" title="Next Image">
-                                <svg viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
-                                </svg>
-                            </button>
-                        </div>
-                        
-                        <div class="control-group tools-group">
-                            <button class="control-btn" id="zoom-out" title="Zoom Out">
-                                <svg viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M19 13H5v-2h14v2z"/>
-                                </svg>
-                            </button>
-                            <button class="control-btn" id="reset-zoom" title="Reset View">
-                                <svg viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                                </svg>
-                            </button>
-                            <button class="control-btn" id="zoom-in" title="Zoom In">
-                                <svg viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                                </svg>
-                            </button>
-                            <button class="control-btn" id="back-to-curriculum" title="Back to Curriculum" style="display: none;">
-                                <svg viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-                                </svg>
-                            </button>
-                            <button class="control-btn" id="others-btn" title="Additional Files">
-                                <svg viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                                </svg>
-                            </button>
-                            <button class="control-btn" id="fullscreen-btn" title="Open in New Tab">
-                                <svg viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-                                </svg>
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>

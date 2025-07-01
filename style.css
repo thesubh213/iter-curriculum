@@ -476,7 +476,7 @@ body {
     justify-content: center;
     cursor: grab;
     background: radial-gradient(circle at center, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
-    padding-bottom: 120px;
+    padding-bottom: 20px;
     touch-action: none;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -633,10 +633,12 @@ body {
 }
 
 .viewer-controls {
-    position: fixed !important;
-    bottom: 2rem !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
+    position: relative !important;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 0.75rem !important;
@@ -652,6 +654,8 @@ body {
     visibility: visible !important;
     opacity: 1 !important;
     pointer-events: auto !important;
+    margin: 1rem 2rem !important;
+    align-self: center !important;
 }
 
 .control-group {
@@ -1031,31 +1035,26 @@ body {
     }
     
     .dropdown-container {
-        padding: 2.5rem 2rem;
-        border-radius: var(--border-radius-lg);
+        margin: 1rem;
     }
     
     .container-header {
-        gap: 1.25rem;
-        margin-bottom: 2rem;
+        padding: 1.5rem;
     }
     
     .container-header .icon {
-        font-size: 3rem;
-    }
-    
-    .container-header h2 {
         font-size: 1.5rem;
     }
     
+    .container-header h2 {
+        font-size: 1.25rem;
+    }
+    
     .dropdown {
-        padding: 1.25rem 1.5rem;
-        font-size: 1rem;
+        padding: 1rem 1.25rem;
     }
     
     .dropdown-icon {
-        width: 18px;
-        height: 18px;
         right: 1rem;
     }
     
@@ -1065,50 +1064,39 @@ body {
     }
     
     .setup-actions .btn {
-        padding: 0.75rem 1.5rem;
-        font-size: 0.9rem;
+        padding: 0.75rem 1.25rem;
     }
     
     .btn-icon {
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
     }
     
     .overlay-header h2 {
-        font-size: 2rem;
+        font-size: 1.5rem;
     }
     
     .overlay-body {
-        padding: 2rem 1.5rem;
+        padding: 1.5rem 1rem;
     }
     
     .overlay-grid {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
     }
     
     .main-content {
-        padding-bottom: 0;
+        padding: 0;
     }
     
     .image-viewer {
-        padding-bottom: 160px;
-        min-height: calc(100vh - 200px);
+        padding-bottom: 20px;
     }
     
     .viewer-controls {
-        bottom: max(1rem, env(safe-area-inset-bottom)) !important;
-        left: max(0.75rem, env(safe-area-inset-left)) !important;
-        right: max(0.75rem, env(safe-area-inset-right)) !important;
-        transform: none !important;
+        margin: 0.5rem 1rem !important;
         padding: 1rem !important;
         gap: 0.5rem !important;
-        max-width: none !important;
-        width: auto !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        display: flex !important;
-        z-index: 1001 !important;
         background: rgba(0, 0, 0, 0.95) !important;
         border-radius: var(--border-radius-lg) !important;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;

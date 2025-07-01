@@ -562,7 +562,7 @@ class CurriculumApp {
                 let resolved = false;
                 
                 // Increased timeout for better reliability
-                const timeout = Math.min(this.appConfig.loadingTimeout || 15000, 5000);
+                const timeout = Math.min(this.appConfig.loadingTimeout || 20000, 10000);
                 
                 const timer = setTimeout(() => {
                     if (!resolved) {
@@ -1649,12 +1649,14 @@ class CurriculumApp {
                     const viewerHeaderInfo = document.getElementById('viewer-header-info');
                     const headerOptions = document.getElementById('header-options');
                     const oneTimeIndicator = document.getElementById('one-time-process-indicator');
+                    const viewerControls = document.getElementById('viewer-controls');
                     
                     if (sectionId === 'viewer-section') {
                         document.body.classList.add('viewer-mode');
                         if (mainTitle) mainTitle.style.display = 'none';
                         if (viewerHeaderInfo) viewerHeaderInfo.style.display = 'flex';
                         if (headerOptions) headerOptions.style.display = 'flex';
+                        if (viewerControls) viewerControls.style.display = 'flex';
                         if (oneTimeIndicator) oneTimeIndicator.classList.add('hidden');
                         
                         setTimeout(() => {
@@ -1677,6 +1679,7 @@ class CurriculumApp {
                         }
                         if (viewerHeaderInfo) viewerHeaderInfo.style.display = 'none';
                         if (headerOptions) headerOptions.style.display = 'none';
+                        if (viewerControls) viewerControls.style.display = 'none';
                         
                         if (oneTimeIndicator) {
                             if (sectionId === 'batch-section' || sectionId === 'stream-section' || sectionId === 'semester-section') {
@@ -1699,7 +1702,7 @@ class CurriculumApp {
 
     ensureToolbarVisibility() {
         try {
-            const toolbar = document.querySelector('.viewer-controls');
+            const toolbar = document.getElementById('viewer-controls');
             if (!toolbar) {
                 return;
             }
@@ -1711,18 +1714,6 @@ class CurriculumApp {
             toolbar.style.opacity = '1';
             toolbar.style.pointerEvents = 'auto';
             toolbar.style.zIndex = '1001';
-            
-            if (isMobile) {
-                toolbar.style.bottom = '1rem';
-                toolbar.style.left = '0.75rem';
-                toolbar.style.right = '0.75rem';
-                toolbar.style.transform = 'none';
-                toolbar.style.padding = '0.75rem';
-                toolbar.style.gap = '0.5rem';
-                toolbar.style.maxWidth = 'none';
-                toolbar.style.width = 'auto';
-                toolbar.style.background = 'rgba(0, 0, 0, 0.95)';
-            }
             
             const controlGroups = toolbar.querySelectorAll('.control-group');
             controlGroups.forEach(group => {
@@ -1759,6 +1750,7 @@ class CurriculumApp {
     }
 
     async loadCurriculumImages() {
+        this.isAborted = false;
         if (this.loadingSteps.length === 0) {
             this.setupLoadingSteps([
                 { name: 'Discovering curriculum images...', weight: 25 },
@@ -1774,6 +1766,8 @@ class CurriculumApp {
             this.updateLoadingStep(0);
             this.currentImageSet = await this.discoverSemesterImages(semester);
             this.currentImageIndex = 0;
+            
+            if (this.isAborted) return;
             
             if (this.currentImageSet.length === 0) {
                 this.hideLoadingPopup();
@@ -1794,6 +1788,8 @@ class CurriculumApp {
             
             try {
                 await othersLoadPromise;
+                
+                if (this.isAborted) return;
                 
                 let targetIndex = 0;
                 
@@ -1820,12 +1816,16 @@ class CurriculumApp {
                     targetIndex = this.currentImageIndex;
                 }
                 
-                await this.loadImageByIndex(targetIndex);
+                if (!this.isAborted) {
+                    await this.loadImageByIndex(targetIndex);
+                }
                 
                 await preloadPromise;
                 
-                this.showSection('viewer-section');
-                this.updateNavigationControls();
+                if (!this.isAborted) {
+                    this.showSection('viewer-section');
+                    this.updateNavigationControls();
+                }
                 
             } catch (error) {
                 this.hideLoadingPopup();
