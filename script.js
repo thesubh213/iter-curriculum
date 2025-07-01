@@ -19,7 +19,7 @@ class CurriculumApp {
             
             this.appConfig = {
                 maxCacheSize: globalConfig.app?.maxCacheSize ?? 50,
-                loadingTimeout: globalConfig.app?.loadingTimeout ?? 10000,
+                loadingTimeout: globalConfig.app?.loadingTimeout ?? 30000,
                 retryAttempts: globalConfig.app?.retryAttempts ?? 3
             };
         } catch (error) {
@@ -39,7 +39,7 @@ class CurriculumApp {
             
             this.appConfig = {
                 maxCacheSize: 50,
-                loadingTimeout: 10000,
+                loadingTimeout: 30000,
                 retryAttempts: 3
             };
         }
@@ -68,6 +68,9 @@ class CurriculumApp {
         this.loadProgressInterval = null;
         this.loadingSteps = [];
         this.currentLoadingStep = 0;
+        this.loadingStartTime = null;
+        this.lastCacheCheck = 0;
+        this.cacheVersion = this.getCacheVersion();
         
         this.isPinching = false;
         this.lastPinchDistance = null;
@@ -82,6 +85,7 @@ class CurriculumApp {
         this.isPageReload = this.detectPageReload();
         this.isLoadingPopupActive = false;
         this.isInSelectionProcess = false;
+        this.cacheCheckInterval = null;
         
         this.init();
     }
@@ -92,6 +96,14 @@ class CurriculumApp {
             this.bindEvents();
             this.loadSavedState();
             this.updateUI();
+            
+            if (this.isLoadingFromState && this.selections.batch && this.selections.stream && this.selections.semester) {
+                setTimeout(() => {
+                    this.restoreToViewer();
+                }, 100);
+            }
+            
+            this.setupCacheChecking();
         } catch (error) {
             try {
                 this.showGlobalError('Failed to initialize the application. Please refresh the page.');
@@ -355,7 +367,7 @@ class CurriculumApp {
             this.hideLoadingPopup();
             this.showGlobalError('Loading timeout. Please try again.');
             this.showSection('semester-section');
-        }, this.appConfig.loadingTimeout || 15000);
+        }, this.appConfig.loadingTimeout || 30000);
         
         try {
             await new Promise(resolve => {
@@ -386,6 +398,7 @@ class CurriculumApp {
             const images = await this.discoverSemesterImages(value);
             
             if (images.length === 0) {
+                clearTimeout(loadingTimeout);
                 this.selections.semester = '';
                 this.isViewingAdditionalFile = false;
                 this.updateMainDropdowns();
@@ -398,6 +411,10 @@ class CurriculumApp {
             await this.loadCurriculumImages();
             this.updateNavigationControls();
             this.showSection('viewer-section');
+            
+            setTimeout(() => {
+                this.checkForNewImages();
+            }, 5000);
             
         } catch (error) {
             console.error('Error in handleSemesterChange:', error);
@@ -770,12 +787,18 @@ class CurriculumApp {
             this.currentLoadingStep = stepIndex;
             const step = this.loadingSteps[stepIndex];
             const progressText = document.getElementById('loading-text');
+            const progressPercentage = document.getElementById('loading-percentage');
+            
             if (progressText) {
                 progressText.textContent = step.name;
             }
             
             const stepProgress = (stepIndex / this.loadingSteps.length) * 85; 
             this.updateLoadingPopupProgress(stepProgress);
+            
+            if (progressPercentage) {
+                progressPercentage.textContent = `${Math.round(stepProgress)}%`;
+            }
         }
     }
 
@@ -1344,18 +1367,25 @@ class CurriculumApp {
     }
 
     updateLoadingPopupProgress(progress) {
-            const progressBar = document.getElementById('loading-progress');
-            if (progressBar) {
+        const progressBar = document.getElementById('loading-progress');
+        const progressPercentage = document.getElementById('loading-percentage');
+        
+        if (progressBar) {
             progressBar.style.transition = 'width 0.15s cubic-bezier(0.4,0,0.2,1)';
             progressBar.style.width = `${Math.min(progress, 100)}%`;
         }
+        
+        if (progressPercentage) {
+            progressPercentage.textContent = `${Math.round(Math.min(progress, 100))}%`;
+        }
+        
         const progressText = document.getElementById('loading-text');
-            if (progressText && this.loadingSteps.length > 0 && this.currentLoadingStep < this.loadingSteps.length) {
-                    const currentStep = this.loadingSteps[this.currentLoadingStep];
-                    const currentText = currentStep ? currentStep.name : 'Loading...';
-                    if (progressText.textContent !== currentText) {
-                        progressText.textContent = currentText;
-                    }
+        if (progressText && this.loadingSteps.length > 0 && this.currentLoadingStep < this.loadingSteps.length) {
+            const currentStep = this.loadingSteps[this.currentLoadingStep];
+            const currentText = currentStep ? currentStep.name : 'Loading...';
+            if (progressText.textContent !== currentText) {
+                progressText.textContent = currentText;
+            }
         }
     }
 
@@ -1642,6 +1672,7 @@ class CurriculumApp {
                             const imageInfo = this.currentImageSet[this.currentImageIndex];
                             this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
                         }
+                        this.setupCacheChecking();
                     } else {
                         if (mainTitle) {
                             mainTitle.style.display = '';
@@ -1656,6 +1687,10 @@ class CurriculumApp {
                             } else {
                                 oneTimeIndicator.classList.add('hidden');
                             }
+                        }
+                        if (this.cacheCheckInterval) {
+                            clearInterval(this.cacheCheckInterval);
+                            this.cacheCheckInterval = null;
                         }
                     }
                 } catch (error) {
@@ -1816,8 +1851,6 @@ class CurriculumApp {
         this.hideLoadingPopup();
     }
 
-
-
     async showViewerForCurrentSelection() {
         const batchSelect = document.getElementById('batch-select');
         const streamSelect = document.getElementById('stream-select');
@@ -1835,7 +1868,7 @@ class CurriculumApp {
             this.hideLoadingPopup();
             this.showGlobalError('Loading timeout. Please try again.');
             this.showSection('semester-section');
-        }, this.appConfig.loadingTimeout || 15000);
+        }, this.appConfig.loadingTimeout || 30000);
         
         try {
             this.showLoadingPopup('Loading curriculum...');
@@ -1899,6 +1932,10 @@ class CurriculumApp {
         this.updateMainDropdowns();
         this.showSection('batch-section');
         this.updateUI();
+        if (this.cacheCheckInterval) {
+            clearInterval(this.cacheCheckInterval);
+            this.cacheCheckInterval = null;
+        }
     }
 
     resetFromBatch() {
@@ -1930,6 +1967,9 @@ class CurriculumApp {
         }
         if (this.currentSection === 'viewer-section') {
             this.loadOthersFiles();
+            setTimeout(() => {
+                this.checkForNewImages();
+            }, 10000);
         }
         const errorPopup = document.getElementById('global-error-popup');
         if (errorPopup) errorPopup.classList.remove('active');
@@ -2028,12 +2068,264 @@ class CurriculumApp {
                 this.loadProgressInterval = null;
             }
             
+            if (this.cacheCheckInterval) {
+                clearInterval(this.cacheCheckInterval);
+                this.cacheCheckInterval = null;
+            }
+            
             this.currentImageSet = [];
             this.otherFiles = [];
             this.isViewingAdditionalFile = false;
             
             this.saveState();
         } catch (error) {
+        }
+    }
+
+    getCacheVersion() {
+        try {
+            return localStorage.getItem('iterCurriculumCacheVersion') || '1.0.0';
+        } catch (error) {
+            return '1.0.0';
+        }
+    }
+
+    updateCacheVersion() {
+        try {
+            const newVersion = (Date.now() / 1000).toString();
+            localStorage.setItem('iterCurriculumCacheVersion', newVersion);
+            this.cacheVersion = newVersion;
+        } catch (error) {
+            console.warn('Failed to update cache version:', error);
+        }
+    }
+
+    checkForNewImages() {
+        try {
+            const now = Date.now();
+            if (now - this.lastCacheCheck < 60000) return; 
+            this.lastCacheCheck = now;
+            
+            const { batch, stream, semester } = this.selections;
+            if (!batch || !stream || !semester) return;
+            
+            this.checkNewImagesAsync(batch, stream, semester);
+        } catch (error) {
+            console.warn('Failed to check for new images:', error);
+        }
+    }
+
+    async checkNewImagesAsync(batch, stream, semester) {
+        try {
+            const streamFolder = stream.toLowerCase();
+            const testPatterns = [
+                `${streamFolder}-sem${semester}.webp`,
+                `${streamFolder}-sem${semester}-1.webp`,
+                `${streamFolder}-sem${semester}.png`
+            ];
+            
+            let hasNewImages = false;
+            for (const pattern of testPatterns) {
+                const imagePath = `images/${batch}/${streamFolder}/${pattern}`;
+                const cacheBustedPath = this.addCacheBuster(imagePath);
+                
+                try {
+                    const response = await fetch(cacheBustedPath, { method: 'HEAD' });
+                    if (response.ok) {
+                        const lastModified = response.headers.get('last-modified');
+                        if (lastModified) {
+                            const lastModifiedTime = new Date(lastModified).getTime();
+                            const lastCheckTime = parseInt(localStorage.getItem(`lastCheck_${imagePath}`) || '0');
+                            
+                            if (lastModifiedTime > lastCheckTime) {
+                                hasNewImages = true;
+                                break;
+                            }
+                        }
+                    }
+                } catch (error) {
+                }
+            }
+            
+            if (hasNewImages) {
+                this.showCacheUpdatePopup();
+            }
+        } catch (error) {
+        }
+    }
+
+    showCacheUpdatePopup() {
+        try {
+            let updatePopup = document.getElementById('cache-update-popup');
+            if (!updatePopup) {
+                updatePopup = document.createElement('div');
+                updatePopup.id = 'cache-update-popup';
+                updatePopup.className = 'popup';
+                updatePopup.setAttribute('role', 'alertdialog');
+                updatePopup.setAttribute('aria-modal', 'true');
+                updatePopup.innerHTML = `
+                    <div class="popup-content">
+                        <div class="popup-icon">🔄</div>
+                        <h3>New Images Available</h3>
+                        <p>New curriculum images have been detected. Would you like to refresh to see the latest content?</p>
+                        <div class="popup-buttons">
+                            <button class="popup-btn primary" id="refresh-cache-btn">Refresh Now</button>
+                            <button class="popup-btn secondary" id="dismiss-update-btn">Later</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(updatePopup);
+                
+                const refreshBtn = document.getElementById('refresh-cache-btn');
+                const dismissBtn = document.getElementById('dismiss-update-btn');
+                
+                if (refreshBtn) {
+                    refreshBtn.addEventListener('click', () => {
+                        this.refreshCacheAndReload();
+                    });
+                }
+                
+                if (dismissBtn) {
+                    dismissBtn.addEventListener('click', () => {
+                        updatePopup.classList.remove('active');
+                    });
+                }
+            }
+            
+            updatePopup.classList.add('active');
+        } catch (error) {
+            console.error('Failed to show cache update popup:', error);
+        }
+    }
+
+    refreshCacheAndReload() {
+        try {
+            this.imageCache.clear();
+            this.updateCacheVersion();
+            
+            if ('caches' in window) {
+                caches.keys().then(cacheNames => {
+                    cacheNames.forEach(cacheName => {
+                        caches.delete(cacheName);
+                    });
+                });
+            }
+            
+            window.location.reload();
+        } catch (error) {
+            console.error('Failed to refresh cache:', error);
+            window.location.reload();
+        }
+    }
+
+    async restoreToViewer() {
+        try {
+            if (!this.selections.batch || !this.selections.stream || !this.selections.semester) {
+                return;
+            }
+            
+            this.showLoadingPopup('Restoring previous session...');
+            
+            const loadingTimeout = setTimeout(() => {
+                this.hideLoadingPopup();
+                this.showGlobalError('Restoration timeout. Please try again.');
+                this.showSection('semester-section');
+            }, this.appConfig.loadingTimeout || 30000);
+            
+            try {
+                this.setupLoadingSteps([
+                    { name: 'Restoring previous session...', weight: 25 },
+                    { name: 'Discovering curriculum images...', weight: 25 },
+                    { name: 'Loading additional files...', weight: 25 },
+                    { name: 'Loading saved image...', weight: 25 }
+                ]);
+                
+                this.updateLoadingStep(0);
+                const images = await this.discoverSemesterImages(this.selections.semester);
+                this.currentImageSet = images;
+                
+                if (this.currentImageSet.length === 0) {
+                    this.selections.semester = '';
+                    this.isViewingAdditionalFile = false;
+                    this.updateMainDropdowns();
+                    this.hideLoadingPopup();
+                    this.showSection('semester-section');
+                    return;
+                }
+                
+                this.updateLoadingStep(1);
+                const othersLoadPromise = this.loadOthersFiles();
+                
+                this.updateLoadingStep(2);
+                await othersLoadPromise;
+                
+                this.updateLoadingStep(3);
+                
+                if (this.isViewingAdditionalFile && this.lastViewedImagePath) {
+                    const fileIndex = this.otherFiles.findIndex(file => file.path === this.lastViewedImagePath);
+                    if (fileIndex >= 0) {
+                        this.currentImageSet = this.otherFiles;
+                        this.currentImageIndex = fileIndex;
+                        await this.loadImageByIndex(fileIndex);
+                    } else {
+                        this.isViewingAdditionalFile = false;
+                        this.currentImageIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
+                            this.previousCurriculumIndex : 0;
+                        await this.loadImageByIndex(this.currentImageIndex);
+                    }
+                } else if (this.lastViewedImagePath) {
+                    const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
+                    if (imageIndex !== -1) {
+                        this.currentImageIndex = imageIndex;
+                        await this.loadImageByIndex(imageIndex);
+                    } else {
+                        this.currentImageIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
+                            this.previousCurriculumIndex : 0;
+                        await this.loadImageByIndex(this.currentImageIndex);
+                    }
+                } else {
+                    this.currentImageIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
+                        this.previousCurriculumIndex : 0;
+                    await this.loadImageByIndex(this.currentImageIndex);
+                }
+                
+                this.updateNavigationControls();
+                this.showSection('viewer-section');
+                
+                setTimeout(() => {
+                    this.checkForNewImages();
+                }, 5000);
+                
+            } catch (error) {
+                console.error('Error in restoreToViewer:', error);
+                this.hideLoadingPopup();
+                this.showGlobalError('Error restoring session: ' + (error && error.message ? error.message : 'Unknown error'));
+                this.showSection('semester-section');
+            } finally {
+                clearTimeout(loadingTimeout);
+                this.hideLoadingPopup();
+            }
+        } catch (error) {
+            console.error('Failed to restore to viewer:', error);
+            this.showSection('semester-section');
+        }
+    }
+
+    setupCacheChecking() {
+        try {
+            if (this.cacheCheckInterval) {
+                clearInterval(this.cacheCheckInterval);
+            }
+            this.cacheCheckInterval = setInterval(() => {
+                if (this.currentSection === 'viewer-section' && 
+                    this.selections.batch && 
+                    this.selections.stream && 
+                    this.selections.semester) {
+                    this.checkForNewImages();
+                }
+            }, 300000); 
+        } catch (error) {
+            console.warn('Failed to setup cache checking:', error);
         }
     }
 }
@@ -2047,6 +2339,9 @@ document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && app) {
         if (!app.isInSelectionProcess && app.selections.batch && app.selections.stream && app.selections.semester) {
             app.updateUI();
+            setTimeout(() => {
+                app.checkForNewImages();
+            }, 2000);
         }
     }
 });

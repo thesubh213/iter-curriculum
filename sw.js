@@ -18,7 +18,6 @@ self.addEventListener('install', (event) => {
                 return cache.addAll(STATIC_FILES);
             })
             .catch((error) => {
-                // Some files failed to cache silently
             })
     );
 });
@@ -41,15 +40,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
     
-    // Handle image requests with optimized caching
     if (event.request.destination === 'image' || url.pathname.includes('/images/')) {
         event.respondWith(
             caches.open(IMAGE_CACHE_NAME).then(async cache => {
                 try {
-                    // Check cache first
                     const cached = await cache.match(event.request);
                     if (cached) {
-                        // Update cache in background
                         event.waitUntil(
                             fetch(event.request)
                                 .then(response => {
@@ -62,7 +58,6 @@ self.addEventListener('fetch', (event) => {
                         return cached;
                     }
                     
-                    // Fetch from network
                     const response = await fetch(event.request, { 
                         cache: 'reload',
                         headers: {
@@ -75,7 +70,6 @@ self.addEventListener('fetch', (event) => {
                     }
                     return response;
                 } catch (error) {
-                    // Return a fallback response
                     return new Response('Image not available', { 
                         status: 404, 
                         headers: { 
@@ -89,7 +83,6 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     
-    // Handle static files with cache-first strategy
     if (event.request.method === 'GET' && !url.pathname.includes('/images/')) {
         event.respondWith(
             caches.match(event.request)
@@ -98,7 +91,6 @@ self.addEventListener('fetch', (event) => {
                         return response;
                     }
                     return fetch(event.request).then(response => {
-                        // Cache successful responses for static files
                         if (response.status === 200 && response.type === 'basic') {
                             const responseToCache = response.clone();
                             caches.open(CACHE_NAME).then(cache => {
