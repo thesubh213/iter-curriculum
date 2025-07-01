@@ -14,7 +14,7 @@ window.ITER_CURRICULUM_CONFIG = {
     },
     app: {
         maxCacheSize: 50,
-        loadingTimeout: 10000,
+        loadingTimeout: 20000,
         retryAttempts: 3
     }
 }; 

@@ -1872,7 +1872,6 @@ body {
     100% { transform: rotate(360deg); }
 }
 
-/* Ensure toolbar is above image but below header */
 .header {
     z-index: 1500;
 }
@@ -1883,19 +1882,16 @@ body {
     z-index: 1000;
 }
 
-/* Add margin between header and toolbar */
 .viewer-controls {
     margin-top: 2rem;
 }
 
-/* Make sure image is interactable and visible */
 #curriculum-image {
     pointer-events: auto !important;
     opacity: 1 !important;
     display: block !important;
 }
 
-/* Responsive: keep toolbar above bottom edge on mobile */
 @media (max-width: 600px) {
     .viewer-controls {
         bottom: 1.5rem;
@@ -1904,12 +1900,10 @@ body {
     }
 }
 
-/* Remove forced display:flex !important on .viewer-controls outside .viewer-mode */
 .viewer-controls:not(.viewer-mode .viewer-controls) {
     display: none !important;
 }
 
-/* --- Style the reset selection button --- */
 #reset-selection-btn {
     background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
     color: var(--white);
@@ -1942,12 +1936,13 @@ body {
   pointer-events: all !important;
 }
 
-body > *:not(.image-loading) {
-  pointer-events: auto;
-}
-
-body.loading-active > *:not(.image-loading) {
+body.loading-active > *:not(.image-loading):not(.image-viewer-container) {
   pointer-events: none !important;
   user-select: none !important;
   -webkit-user-select: none !important;
+}
+
+.image-viewer-container,
+#curriculum-image {
+  pointer-events: auto !important;
 }
