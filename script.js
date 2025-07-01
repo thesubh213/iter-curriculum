@@ -98,9 +98,9 @@ class CurriculumApp {
             this.updateUI();
             
             if (this.isLoadingFromState && this.selections.batch && this.selections.stream && this.selections.semester) {
-                setTimeout(() => {
+                requestAnimationFrame(() => {
                     this.restoreToViewer();
-                }, 100);
+                });
             }
             
             this.setupCacheChecking();
@@ -438,6 +438,7 @@ class CurriculumApp {
             
             const images = [];
             let streamFolder = stream.toLowerCase();
+            
             const patterns = [
                 `${streamFolder}-sem${semester}.webp`,
                 `${streamFolder}-sem${semester}-1.webp`,
@@ -447,32 +448,35 @@ class CurriculumApp {
                 `${streamFolder}-sem${semester}-1.png`,
                 `${streamFolder}-sem${semester}-2.png`,
                 `${streamFolder}-sem${semester}-3.png`,
+                `${streamFolder}-semester${semester}.webp`,
+                `${streamFolder}-semester${semester}-1.webp`,
+                `${streamFolder}-semester${semester}-2.webp`,
+                `${streamFolder}-semester${semester}.png`,
+                `${streamFolder}-semester${semester}-1.png`,
+                `${streamFolder}-semester${semester}-2.png`,
             ];
             
-            const discoveryTimeout = setTimeout(() => {
-                console.warn('Image discovery timeout');
-            }, 5000);
-            
-            try {
-                for (const pattern of patterns) {
-                    const imagePath = `images/${batch}/${streamFolder}/${pattern}`;
-                    try {
-                        if (await this.imageExists(imagePath)) {
-                            images.push({
-                                path: imagePath,
-                                name: this.formatImageName(pattern),
-                                type: 'semester'
-                            });
-                        }
-                    } catch (imageError) {
-                        console.warn('Error checking image:', imagePath, imageError);
+            const checkPromises = patterns.map(async (pattern) => {
+                const imagePath = `images/${batch}/${streamFolder}/${pattern}`;
+                try {
+                    const exists = await this.imageExists(imagePath);
+                    if (exists) {
+                        return {
+                            path: imagePath,
+                            name: this.formatImageName(pattern),
+                            type: 'semester'
+                        };
                     }
+                } catch (imageError) {
+                    console.warn('Error checking image:', imagePath, imageError);
                 }
-            } finally {
-                clearTimeout(discoveryTimeout);
-            }
+                return null;
+            });
             
-            if (images.length === 0) {
+            const results = await Promise.all(checkPromises);
+            const validImages = results.filter(img => img !== null);
+            
+            if (validImages.length === 0) {
                 const message = this.missingFolderConfig.customMessages.missingSemester
                     .replace('{stream}', this.getStreamDisplayName())
                     .replace('{semester}', semester)
@@ -480,7 +484,7 @@ class CurriculumApp {
                 this.showMissingFolderPopup(message);
             }
             
-            return images;
+            return validImages;
         } catch (error) {
             console.error('Error in discoverSemesterImages:', error);
             const { stream, batch } = this.selections;
@@ -557,7 +561,8 @@ class CurriculumApp {
                 let timedOut = false;
                 let resolved = false;
                 
-                const timeout = Math.min(this.appConfig.loadingTimeout || 10000, 2000);
+                // Increased timeout for better reliability
+                const timeout = Math.min(this.appConfig.loadingTimeout || 15000, 5000);
                 
                 const timer = setTimeout(() => {
                     if (!resolved) {
@@ -590,6 +595,7 @@ class CurriculumApp {
                 
                 img.crossOrigin = 'anonymous';
                 
+                // Use cache buster for better reliability
                 const cacheBustedPath = this.addCacheBuster(imagePath);
                 
                 try {
@@ -854,37 +860,32 @@ class CurriculumApp {
 
     async loadImageByIndex(index) {
         let targetImageSet = this.isViewingAdditionalFile ? this.otherFiles : this.currentImageSet;
-        
         if (index < 0 || index >= targetImageSet.length) {
-            console.warn('Invalid image index:', index);
             return;
         }
-        
         this.currentImageIndex = index;
         const imageInfo = targetImageSet[index];
         const image = document.getElementById('curriculum-image');
-        
         if (!image) {
-            console.error('Curriculum image element not found');
             return;
         }
-        
         try {
             image.src = '';
-            this.updateLoadingPopupProgress(95);
-            
+            image.classList.remove('fade-in');
+            this.updateLoadingPopupProgress(0);
             await this.loadImageWithRetry(imageInfo.path);
-            
+            this.updateLoadingPopupProgress(50);
             image.src = this.addCacheBuster(imageInfo.path);
-            
+            image.onload = () => {
+                this.updateLoadingPopupProgress(100);
+                image.classList.add('fade-in');
+            };
             if (this.isViewingAdditionalFile) {
                 this.updateViewerHeaderInfo(imageInfo.name, 'Additional Resource');
             } else {
                 this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
             }
-            
             this.resetImageTransform();
-            
             if (!this.isViewingAdditionalFile) {
                 if (window.requestIdleCallback) {
                     requestIdleCallback(() => this.preloadAdjacentImages(index));
@@ -892,15 +893,11 @@ class CurriculumApp {
                     setTimeout(() => this.preloadAdjacentImages(index), 100);
                 }
             }
-            
             this.lastViewedImagePath = imageInfo.path;
             this.saveState();
-            
-            this.updateLoadingPopupProgress(100);
             this.updateNavigationControls();
-            
         } catch (error) {
-            console.error('Error loading image:', error);
+            this.updateLoadingPopupProgress(0);
             this.showGlobalError('Error loading image: ' + (error && error.message ? error.message : 'Unknown error'));
             this.showSection('semester-section');
         }
@@ -2224,24 +2221,31 @@ class CurriculumApp {
                 return;
             }
             
-            this.showLoadingPopup('Restoring previous session...');
+            // Show minimal loading for faster restoration
+            this.showLoadingPopup('Restoring session...');
             
+            // Reduced timeout for faster failure detection
             const loadingTimeout = setTimeout(() => {
                 this.hideLoadingPopup();
                 this.showGlobalError('Restoration timeout. Please try again.');
                 this.showSection('semester-section');
-            }, this.appConfig.loadingTimeout || 30000);
+            }, 15000);
             
             try {
+                // Simplified loading steps for faster restoration
                 this.setupLoadingSteps([
-                    { name: 'Restoring previous session...', weight: 25 },
-                    { name: 'Discovering curriculum images...', weight: 25 },
-                    { name: 'Loading additional files...', weight: 25 },
-                    { name: 'Loading saved image...', weight: 25 }
+                    { name: 'Loading curriculum...', weight: 50 },
+                    { name: 'Restoring image...', weight: 50 }
                 ]);
                 
                 this.updateLoadingStep(0);
-                const images = await this.discoverSemesterImages(this.selections.semester);
+                
+                // Run discovery and others loading in parallel for speed
+                const [images, othersResult] = await Promise.all([
+                    this.discoverSemesterImages(this.selections.semester),
+                    this.loadOthersFiles()
+                ]);
+                
                 this.currentImageSet = images;
                 
                 if (this.currentImageSet.length === 0) {
@@ -2254,47 +2258,44 @@ class CurriculumApp {
                 }
                 
                 this.updateLoadingStep(1);
-                const othersLoadPromise = this.loadOthersFiles();
                 
-                this.updateLoadingStep(2);
-                await othersLoadPromise;
-                
-                this.updateLoadingStep(3);
+                // Determine which image to load
+                let targetIndex = 0;
                 
                 if (this.isViewingAdditionalFile && this.lastViewedImagePath) {
                     const fileIndex = this.otherFiles.findIndex(file => file.path === this.lastViewedImagePath);
                     if (fileIndex >= 0) {
                         this.currentImageSet = this.otherFiles;
                         this.currentImageIndex = fileIndex;
-                        await this.loadImageByIndex(fileIndex);
+                        targetIndex = fileIndex;
                     } else {
                         this.isViewingAdditionalFile = false;
-                        this.currentImageIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
+                        targetIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
                             this.previousCurriculumIndex : 0;
-                        await this.loadImageByIndex(this.currentImageIndex);
                     }
                 } else if (this.lastViewedImagePath) {
                     const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
                     if (imageIndex !== -1) {
-                        this.currentImageIndex = imageIndex;
-                        await this.loadImageByIndex(imageIndex);
+                        targetIndex = imageIndex;
                     } else {
-                        this.currentImageIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
+                        targetIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
                             this.previousCurriculumIndex : 0;
-                        await this.loadImageByIndex(this.currentImageIndex);
                     }
                 } else {
-                    this.currentImageIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
+                    targetIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
                         this.previousCurriculumIndex : 0;
-                    await this.loadImageByIndex(this.currentImageIndex);
                 }
+                
+                // Load the target image
+                await this.loadImageByIndex(targetIndex);
                 
                 this.updateNavigationControls();
                 this.showSection('viewer-section');
                 
+                // Check for new images in background
                 setTimeout(() => {
                     this.checkForNewImages();
-                }, 5000);
+                }, 3000);
                 
             } catch (error) {
                 console.error('Error in restoreToViewer:', error);
