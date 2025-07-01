@@ -1651,6 +1651,7 @@ class CurriculumApp {
                     }
                     targetSection.classList.add('active');
                     this.currentSection = sectionId;
+                    this.ensureDropdownsEnabledAndBound(sectionId);
                     
                     const mainTitle = document.getElementById('main-title');
                     const viewerHeaderInfo = document.getElementById('viewer-header-info');
@@ -2334,6 +2335,34 @@ class CurriculumApp {
             }, 300000); 
         } catch (error) {
             console.warn('Failed to setup cache checking:', error);
+        }
+    }
+
+    ensureDropdownsEnabledAndBound(sectionId) {
+        if (sectionId === 'batch-section') {
+            const batchSelect = document.getElementById('batch-select');
+            if (batchSelect) {
+                batchSelect.disabled = false;
+                batchSelect.removeEventListener('change', this._batchChangeHandler);
+                this._batchChangeHandler = (e) => this.handleBatchChange(e.target.value);
+                batchSelect.addEventListener('change', this._batchChangeHandler);
+            }
+        } else if (sectionId === 'stream-section') {
+            const streamSelect = document.getElementById('stream-select');
+            if (streamSelect) {
+                streamSelect.disabled = false;
+                streamSelect.removeEventListener('change', this._streamChangeHandler);
+                this._streamChangeHandler = (e) => this.handleStreamChange(e.target.value);
+                streamSelect.addEventListener('change', this._streamChangeHandler);
+            }
+        } else if (sectionId === 'semester-section') {
+            const semesterSelect = document.getElementById('semester-select');
+            if (semesterSelect) {
+                semesterSelect.disabled = false;
+                semesterSelect.removeEventListener('change', this._semesterChangeHandler);
+                this._semesterChangeHandler = (e) => this.handleSemesterChange(e.target.value);
+                semesterSelect.addEventListener('change', this._semesterChangeHandler);
+            }
         }
     }
 }
