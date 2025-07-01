@@ -1340,6 +1340,10 @@ class CurriculumApp {
                 }
             }
             
+            if (document && document.body) {
+                document.body.classList.add('loading-active');
+            }
+            
             if (progressText) {
                 try {
                     progressText.textContent = message;
@@ -1417,6 +1421,9 @@ class CurriculumApp {
                     }
                     if (progressText) {
                         progressText.textContent = 'Loading...';
+                    }
+                    if (document && document.body) {
+                        document.body.classList.remove('loading-active');
                     }
                 } catch (hideError) {
                 }
