@@ -966,8 +966,8 @@ class CurriculumApp {
             image.classList.remove('fade-in');
             this.updateLoadingPopupProgress(0);
             await this.loadImageWithRetry(imageInfo.path, 2);
-            this.updateLoadingPopupProgress(60);
             image.src = this.addCacheBuster(imageInfo.path);
+            this.updateLoadingPopupProgress(60);
             loadingTimeout = setTimeout(() => {
                 if (!isCompleted) {
                     completeLoading();
@@ -988,19 +988,11 @@ class CurriculumApp {
                     image.removeEventListener('load', onImageLoad);
                     image.removeEventListener('error', onImageError);
                     completeLoading();
+                    this.showGlobalError('Failed to load image.');
                     reject(new Error('Failed to load image'));
                 };
                 image.addEventListener('load', onImageLoad);
                 image.addEventListener('error', onImageError);
-                // Longer fallback timeout for slow connections
-                setTimeout(() => {
-                    if (!image.classList.contains('fade-in')) {
-                        this.updateLoadingPopupProgress(100);
-                        image.classList.add('fade-in');
-                        completeLoading();
-                        resolve();
-                    }
-                }, 2000);
             });
             if (this.isViewingAdditionalFile) {
                 this.updateViewerHeaderInfo(imageInfo.name, 'Additional Resource');
@@ -1087,6 +1079,7 @@ class CurriculumApp {
                 image.src = '';
                 await this.loadImageWithRetry(fileInfo.path);
                 image.src = this.addCacheBuster(fileInfo.path);
+                this.updateLoadingPopupProgress(60);
                 this.updateViewerHeaderInfo(fileInfo.name, 'Additional Resource');
                 this.isViewingAdditionalFile = true;
                 this.updateNavigationControls();
@@ -1111,18 +1104,11 @@ class CurriculumApp {
                         image.removeEventListener('load', onImageLoad);
                         image.removeEventListener('error', onImageError);
                         completeLoading();
+                        this.showGlobalError('Failed to load image.');
                         reject(new Error('Failed to load image'));
                     };
                     image.addEventListener('load', onImageLoad);
                     image.addEventListener('error', onImageError);
-                    setTimeout(() => {
-                        if (!image.classList.contains('fade-in')) {
-                            this.updateLoadingPopupProgress(100);
-                            image.classList.add('fade-in');
-                            completeLoading();
-                            resolve();
-                        }
-                    }, 2000);
                 });
                 const filesToPreload = this.otherFiles.filter(f => f.path !== fileInfo.path);
                 if (filesToPreload.length > 0) {
@@ -1152,6 +1138,10 @@ class CurriculumApp {
             const othersBtn = document.getElementById('others-btn');
             const backToCurriculumBtn = document.getElementById('back-to-curriculum');
             const navigationGroup = document.querySelector('.navigation-group');
+            const viewerControls = document.getElementById('viewer-controls');
+            if (this.currentSection !== 'viewer-section' && viewerControls) {
+                viewerControls.style.display = 'none';
+            }
             if (this.isViewingAdditionalFile) {
                 const totalFiles = this.otherFiles.length;
                 const currentFileIndex = this.currentImageIndex;
@@ -1799,13 +1789,10 @@ class CurriculumApp {
             if (!sections || sections.length === 0) {
                 return;
             }
-            
             sections.forEach(section => {
                 section.classList.remove('active');
             });
-            
             document.body.classList.remove('viewer-mode');
-
             setTimeout(() => {
                 try {
                     const targetSection = document.getElementById(sectionId);
@@ -1815,13 +1802,11 @@ class CurriculumApp {
                     targetSection.classList.add('active');
                     this.currentSection = sectionId;
                     this.ensureDropdownsEnabledAndBound(sectionId);
-                    
                     const mainTitle = document.getElementById('main-title');
                     const viewerHeaderInfo = document.getElementById('viewer-header-info');
                     const headerOptions = document.getElementById('header-options');
                     const oneTimeIndicator = document.getElementById('one-time-process-indicator');
                     const viewerControls = document.getElementById('viewer-controls');
-                    
                     if (sectionId === 'viewer-section') {
                         document.body.classList.add('viewer-mode');
                         if (mainTitle) mainTitle.style.display = 'none';
@@ -1829,15 +1814,12 @@ class CurriculumApp {
                         if (headerOptions) headerOptions.style.display = 'flex';
                         if (viewerControls) viewerControls.style.display = 'flex';
                         if (oneTimeIndicator) oneTimeIndicator.classList.add('hidden');
-                        
                         setTimeout(() => {
                             this.ensureToolbarVisibility();
                         }, 100);
-                        
                         setTimeout(() => {
                             this.bindImageEvents();
                         }, 150);
-                        
                         if (this.currentImageSet.length > 0 && this.currentImageIndex < this.currentImageSet.length) {
                             const imageInfo = this.currentImageSet[this.currentImageIndex];
                             this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
@@ -1851,7 +1833,6 @@ class CurriculumApp {
                         if (viewerHeaderInfo) viewerHeaderInfo.style.display = 'none';
                         if (headerOptions) headerOptions.style.display = 'none';
                         if (viewerControls) viewerControls.style.display = 'none';
-                        
                         if (oneTimeIndicator) {
                             if (sectionId === 'batch-section' || sectionId === 'stream-section' || sectionId === 'semester-section') {
                                 oneTimeIndicator.classList.remove('hidden');
