@@ -19,7 +19,7 @@ class CurriculumApp {
             
             this.appConfig = {
                 maxCacheSize: globalConfig.app?.maxCacheSize ?? 50,
-                loadingTimeout: globalConfig.app?.loadingTimeout ?? 20000,
+                loadingTimeout: globalConfig.app?.loadingTimeout ?? 30000,
                 retryAttempts: globalConfig.app?.retryAttempts ?? 3
             };
         } catch (error) {
@@ -39,7 +39,7 @@ class CurriculumApp {
             
             this.appConfig = {
                 maxCacheSize: 50,
-                loadingTimeout: 20000,
+                loadingTimeout: 30000,
                 retryAttempts: 3
             };
         }
@@ -86,6 +86,7 @@ class CurriculumApp {
         this.isLoadingPopupActive = false;
         this.isInSelectionProcess = false;
         this.cacheCheckInterval = null;
+        this.loadingCompleteTimeout = null;
         
         this.init();
     }
@@ -876,7 +877,8 @@ class CurriculumApp {
                 progressText.textContent = step.name;
             }
             
-            const stepProgress = (stepIndex / this.loadingSteps.length) * 85; 
+            // Calculate progress more accurately to prevent getting stuck
+            const stepProgress = Math.min((stepIndex / this.loadingSteps.length) * 85, 85); 
             this.updateLoadingPopupProgress(stepProgress);
             
             if (progressPercentage) {
@@ -895,7 +897,7 @@ class CurriculumApp {
             .reduce((sum, step) => sum + step.weight, 0);
         
         const stepContribution = (stepWeight * stepProgress / 100);
-        const totalProgress = ((previousStepsWeight + stepContribution) / totalWeight) * 85; 
+        const totalProgress = Math.min(((previousStepsWeight + stepContribution) / totalWeight) * 85, 85); 
         
         this.updateLoadingPopupProgress(totalProgress);
     }
@@ -953,10 +955,36 @@ class CurriculumApp {
             await this.loadImageWithRetry(imageInfo.path);
             this.updateLoadingPopupProgress(50);
             image.src = this.addCacheBuster(imageInfo.path);
-            image.onload = () => {
-                this.updateLoadingPopupProgress(100);
-                image.classList.add('fade-in');
-            };
+            
+            // Ensure image load completes and progress reaches 100%
+            await new Promise((resolve, reject) => {
+                const onImageLoad = () => {
+                    this.updateLoadingPopupProgress(100);
+                    image.classList.add('fade-in');
+                    image.removeEventListener('load', onImageLoad);
+                    image.removeEventListener('error', onImageError);
+                    resolve();
+                };
+                
+                const onImageError = () => {
+                    image.removeEventListener('load', onImageLoad);
+                    image.removeEventListener('error', onImageError);
+                    reject(new Error('Failed to load image'));
+                };
+                
+                image.addEventListener('load', onImageLoad);
+                image.addEventListener('error', onImageError);
+                
+                // Fallback timeout to ensure progress completes
+                setTimeout(() => {
+                    if (!image.classList.contains('fade-in')) {
+                        this.updateLoadingPopupProgress(100);
+                        image.classList.add('fade-in');
+                        resolve();
+                    }
+                }, 1000);
+            });
+            
             if (this.isViewingAdditionalFile) {
                 this.updateViewerHeaderInfo(imageInfo.name, 'Additional Resource');
             } else {
@@ -1448,13 +1476,16 @@ class CurriculumApp {
         const progressBar = document.getElementById('loading-progress');
         const progressPercentage = document.getElementById('loading-percentage');
         
+        // Ensure progress doesn't get stuck
+        const safeProgress = Math.min(Math.max(progress, 0), 100);
+        
         if (progressBar) {
             progressBar.style.transition = 'width 0.15s cubic-bezier(0.4,0,0.2,1)';
-            progressBar.style.width = `${Math.min(progress, 100)}%`;
+            progressBar.style.width = `${safeProgress}%`;
         }
         
         if (progressPercentage) {
-            progressPercentage.textContent = `${Math.round(Math.min(progress, 100))}%`;
+            progressPercentage.textContent = `${Math.round(safeProgress)}%`;
         }
         
         const progressText = document.getElementById('loading-text');
@@ -1465,11 +1496,26 @@ class CurriculumApp {
                 progressText.textContent = currentText;
             }
         }
+        
+        // Fallback to ensure progress completes
+        if (safeProgress >= 85 && !this.loadingCompleteTimeout) {
+            this.loadingCompleteTimeout = setTimeout(() => {
+                this.updateLoadingPopupProgress(100);
+                this.loadingCompleteTimeout = null;
+            }, 2000);
+        }
     }
 
     hideLoadingPopup() {
         try {
             this.isLoadingPopupActive = false;
+            
+            // Clear loading timeout
+            if (this.loadingCompleteTimeout) {
+                clearTimeout(this.loadingCompleteTimeout);
+                this.loadingCompleteTimeout = null;
+            }
+            
             const loadingElement = document.getElementById('image-loading');
             const progressBar = document.getElementById('loading-progress');
             const progressText = document.getElementById('loading-text');
@@ -2226,6 +2272,11 @@ class CurriculumApp {
                 this.cacheCheckInterval = null;
             }
             
+            if (this.loadingCompleteTimeout) {
+                clearTimeout(this.loadingCompleteTimeout);
+                this.loadingCompleteTimeout = null;
+            }
+            
             const batchSelect = document.getElementById('batch-select');
             const streamSelect = document.getElementById('stream-select');
             const semesterSelect = document.getElementById('semester-select');
@@ -2390,25 +2441,36 @@ class CurriculumApp {
             if (!this.selections.batch || !this.selections.stream || !this.selections.semester) {
                 return;
             }
+            
             this.showLoadingPopup('Restoring session...');
-            // Use 20s timeout for restoration
+            this.updateLoadingPopupProgress(10);
+            
+            // Use 30s timeout for restoration
             const loadingTimeout = setTimeout(() => {
                 this.hideLoadingPopup();
                 this.showGlobalError('Restoration timeout. Please try again.');
                 this.showSection('semester-section');
-            }, this.appConfig.loadingTimeout || 20000);
+            }, this.appConfig.loadingTimeout || 30000);
+            
             try {
                 this.setupLoadingSteps([
-                    { name: 'Loading curriculum...', weight: 50 },
-                    { name: 'Restoring image...', weight: 50 }
+                    { name: 'Loading curriculum...', weight: 40 },
+                    { name: 'Checking cache...', weight: 30 },
+                    { name: 'Restoring image...', weight: 30 }
                 ]);
+                
                 this.updateLoadingStep(0);
+                this.updateLoadingPopupProgress(20);
+                
                 // Run discovery and others loading in parallel for speed
                 const [images, othersResult] = await Promise.all([
                     this.discoverSemesterImages(this.selections.semester),
                     this.loadOthersFiles()
                 ]);
+                
                 this.currentImageSet = images;
+                this.updateLoadingPopupProgress(40);
+                
                 if (this.currentImageSet.length === 0) {
                     this.selections.semester = '';
                     this.isViewingAdditionalFile = false;
@@ -2417,42 +2479,82 @@ class CurriculumApp {
                     this.showSection('semester-section');
                     return;
                 }
+                
                 this.updateLoadingStep(1);
-                // Robust restoration logic:
+                this.updateLoadingPopupProgress(60);
+                
+                // Check if target image is cached for faster loading
                 let targetIndex = 0;
+                let targetImagePath = '';
+                
                 if (this.isViewingAdditionalFile && this.lastViewedImagePath) {
                     const fileIndex = this.otherFiles.findIndex(file => file.path === this.lastViewedImagePath);
                     if (fileIndex >= 0) {
                         this.currentImageSet = this.otherFiles;
                         this.currentImageIndex = fileIndex;
                         targetIndex = fileIndex;
+                        targetImagePath = this.lastViewedImagePath;
                     } else {
                         this.isViewingAdditionalFile = false;
                         targetIndex = (this.previousCurriculumIndex < this.currentImageSet.length)
                             ? this.previousCurriculumIndex : 0;
+                        targetImagePath = this.currentImageSet[targetIndex]?.path || '';
                     }
                 } else if (this.lastViewedImagePath) {
                     const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
                     if (imageIndex !== -1) {
                         targetIndex = imageIndex;
+                        targetImagePath = this.lastViewedImagePath;
                     } else {
                         targetIndex = (this.previousCurriculumIndex < this.currentImageSet.length)
                             ? this.previousCurriculumIndex : 0;
+                        targetImagePath = this.currentImageSet[targetIndex]?.path || '';
                     }
                 } else {
                     targetIndex = (this.previousCurriculumIndex < this.currentImageSet.length)
                         ? this.previousCurriculumIndex : 0;
+                    targetImagePath = this.currentImageSet[targetIndex]?.path || '';
                 }
+                
                 // Defensive: if targetIndex is out of bounds, fallback to 0
                 if (targetIndex < 0 || targetIndex >= this.currentImageSet.length) {
                     targetIndex = 0;
+                    targetImagePath = this.currentImageSet[0]?.path || '';
                 }
-                await this.loadImageByIndex(targetIndex);
+                
+                this.updateLoadingStep(2);
+                this.updateLoadingPopupProgress(80);
+                
+                // If image is cached, load it directly for faster restoration
+                if (targetImagePath && this.imageCache.has(targetImagePath)) {
+                    const image = document.getElementById('curriculum-image');
+                    if (image) {
+                        image.src = this.addCacheBuster(targetImagePath);
+                        image.classList.add('fade-in');
+                        
+                        const imageInfo = this.currentImageSet[targetIndex];
+                        if (this.isViewingAdditionalFile) {
+                            this.updateViewerHeaderInfo(imageInfo.name, 'Additional Resource');
+                        } else {
+                            this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
+                        }
+                        
+                        this.updateLoadingPopupProgress(100);
+                        this.currentImageIndex = targetIndex;
+                        this.lastViewedImagePath = targetImagePath;
+                    }
+                } else {
+                    // Load image normally if not cached
+                    await this.loadImageByIndex(targetIndex);
+                }
+                
                 this.updateNavigationControls();
                 this.showSection('viewer-section');
+                
                 setTimeout(() => {
                     this.checkForNewImages();
                 }, 3000);
+                
             } catch (error) {
                 console.error('Error in restoreToViewer:', error);
                 this.hideLoadingPopup();
