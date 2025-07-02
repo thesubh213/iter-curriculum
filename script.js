@@ -879,7 +879,6 @@ class CurriculumApp {
                 progressText.textContent = step.name;
             }
             
-            // Calculate progress more accurately to prevent getting stuck
             const stepProgress = Math.min((stepIndex / this.loadingSteps.length) * 85, 85); 
             this.updateLoadingPopupProgress(stepProgress);
             
@@ -924,7 +923,6 @@ class CurriculumApp {
                 if (attempt === maxRetries) {
                     throw new Error('Failed to load image after multiple attempts');
                 }
-                // Longer delay between retries for slow connections
                 await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
             }
         }
@@ -951,45 +949,59 @@ class CurriculumApp {
         if (!image) {
             return;
         }
+        let loadingTimeout = null;
+        let isCompleted = false;
+        const completeLoading = () => {
+            if (!isCompleted) {
+                isCompleted = true;
+                if (loadingTimeout) {
+                    clearTimeout(loadingTimeout);
+                    loadingTimeout = null;
+                }
+                this.hideLoadingPopup();
+            }
+        };
         try {
             image.src = '';
             image.classList.remove('fade-in');
             this.updateLoadingPopupProgress(0);
-            
-            // Load image with longer timeout for slow connections
             await this.loadImageWithRetry(imageInfo.path, 2);
             this.updateLoadingPopupProgress(60);
             image.src = this.addCacheBuster(imageInfo.path);
-            
-            // Ensure image load completes and progress reaches 100%
+            loadingTimeout = setTimeout(() => {
+                if (!isCompleted) {
+                    completeLoading();
+                    this.showGlobalError('Loading timeout. Please try again.');
+                    this.showSection('semester-section');
+                }
+            }, 40000);
             await new Promise((resolve, reject) => {
                 const onImageLoad = () => {
                     this.updateLoadingPopupProgress(100);
                     image.classList.add('fade-in');
                     image.removeEventListener('load', onImageLoad);
                     image.removeEventListener('error', onImageError);
+                    completeLoading();
                     resolve();
                 };
-                
                 const onImageError = () => {
                     image.removeEventListener('load', onImageLoad);
                     image.removeEventListener('error', onImageError);
+                    completeLoading();
                     reject(new Error('Failed to load image'));
                 };
-                
                 image.addEventListener('load', onImageLoad);
                 image.addEventListener('error', onImageError);
-                
                 // Longer fallback timeout for slow connections
                 setTimeout(() => {
                     if (!image.classList.contains('fade-in')) {
                         this.updateLoadingPopupProgress(100);
                         image.classList.add('fade-in');
+                        completeLoading();
                         resolve();
                     }
                 }, 2000);
             });
-            
             if (this.isViewingAdditionalFile) {
                 this.updateViewerHeaderInfo(imageInfo.name, 'Additional Resource');
             } else {
@@ -1044,6 +1056,10 @@ class CurriculumApp {
     async loadOtherFile(fileInfo) {
         try {
             const fileIndex = this.otherFiles.findIndex(file => file.path === fileInfo.path);
+            if (!this.isViewingAdditionalFile) {
+                this.previousCurriculumIndex = this.currentImageIndex;
+                this.previousCurriculumImageSet = [...this.currentImageSet];
+            }
             this.currentImageSet = this.otherFiles;
             this.currentImageIndex = fileIndex >= 0 ? fileIndex : 0;
             const image = document.getElementById('curriculum-image');
@@ -1051,6 +1067,18 @@ class CurriculumApp {
                 this.hideLoadingPopup();
                 return;
             }
+            let loadingTimeout = null;
+            let isCompleted = false;
+            const completeLoading = () => {
+                if (!isCompleted) {
+                    isCompleted = true;
+                    if (loadingTimeout) {
+                        clearTimeout(loadingTimeout);
+                        loadingTimeout = null;
+                    }
+                    this.hideLoadingPopup();
+                }
+            };
             try {
                 this.setupLoadingSteps([
                     { name: `Loading ${fileInfo.name}...`, weight: 100 }
@@ -1063,8 +1091,39 @@ class CurriculumApp {
                 this.isViewingAdditionalFile = true;
                 this.updateNavigationControls();
                 this.resetImageTransform();
-                this.updateLoadingPopupProgress(100);
-                this.hideLoadingPopup();
+                loadingTimeout = setTimeout(() => {
+                    if (!isCompleted) {
+                        completeLoading();
+                        this.showGlobalError('Loading timeout. Please try again.');
+                        this.showSection('semester-section');
+                    }
+                }, 40000);
+                await new Promise((resolve, reject) => {
+                    const onImageLoad = () => {
+                        this.updateLoadingPopupProgress(100);
+                        image.classList.add('fade-in');
+                        image.removeEventListener('load', onImageLoad);
+                        image.removeEventListener('error', onImageError);
+                        completeLoading();
+                        resolve();
+                    };
+                    const onImageError = () => {
+                        image.removeEventListener('load', onImageLoad);
+                        image.removeEventListener('error', onImageError);
+                        completeLoading();
+                        reject(new Error('Failed to load image'));
+                    };
+                    image.addEventListener('load', onImageLoad);
+                    image.addEventListener('error', onImageError);
+                    setTimeout(() => {
+                        if (!image.classList.contains('fade-in')) {
+                            this.updateLoadingPopupProgress(100);
+                            image.classList.add('fade-in');
+                            completeLoading();
+                            resolve();
+                        }
+                    }, 2000);
+                });
                 const filesToPreload = this.otherFiles.filter(f => f.path !== fileInfo.path);
                 if (filesToPreload.length > 0) {
                     if (window.requestIdleCallback) {
@@ -1093,21 +1152,17 @@ class CurriculumApp {
             const othersBtn = document.getElementById('others-btn');
             const backToCurriculumBtn = document.getElementById('back-to-curriculum');
             const navigationGroup = document.querySelector('.navigation-group');
-            
             if (this.isViewingAdditionalFile) {
                 const totalFiles = this.otherFiles.length;
                 const currentFileIndex = this.currentImageIndex;
-                
                 if (prevBtn) {
                     prevBtn.disabled = currentFileIndex <= 0;
                     prevBtn.style.display = totalFiles > 1 ? 'flex' : 'none';
                 }
-                
                 if (nextBtn) {
                     nextBtn.disabled = currentFileIndex >= totalFiles - 1;
                     nextBtn.style.display = totalFiles > 1 ? 'flex' : 'none';
                 }
-                
                 if (imageCounter) {
                     if (totalFiles > 1) {
                         imageCounter.textContent = `${currentFileIndex + 1} / ${totalFiles}`;
@@ -1116,40 +1171,32 @@ class CurriculumApp {
                         imageCounter.style.display = 'none';
                     }
                 }
-                
                 if (othersBtn) {
                     othersBtn.style.display = 'flex';
                 }
-                
                 if (backToCurriculumBtn) {
                     backToCurriculumBtn.classList.add('show');
                 }
-                
                 if (navigationGroup) {
                     navigationGroup.style.display = totalFiles > 1 ? 'flex' : 'none';
                 }
             } else {
                 const totalImages = this.currentImageSet.length;
                 const currentImageIndex = this.currentImageIndex;
-                
                 if (prevBtn) {
                     prevBtn.disabled = currentImageIndex <= 0;
                     prevBtn.style.display = totalImages > 1 ? 'flex' : 'none';
                 }
-                
                 if (nextBtn) {
                     nextBtn.disabled = currentImageIndex >= totalImages - 1;
                     nextBtn.style.display = totalImages > 1 ? 'flex' : 'none';
                 }
-                
                 if (othersBtn) {
                     othersBtn.style.display = 'flex';
                 }
-                
                 if (backToCurriculumBtn) {
                     backToCurriculumBtn.classList.remove('show');
                 }
-                
                 if (imageCounter) {
                     if (totalImages > 1) {
                         imageCounter.textContent = `${currentImageIndex + 1} / ${totalImages}`;
@@ -1158,13 +1205,11 @@ class CurriculumApp {
                         imageCounter.style.display = 'none';
                     }
                 }
-                
                 if (navigationGroup) {
                     navigationGroup.style.display = totalImages > 1 ? 'flex' : 'none';
                 }
             }
-        } catch (error) {
-        }
+        } catch (error) {}
     }
 
     previousImage() {
