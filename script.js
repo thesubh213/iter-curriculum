@@ -468,7 +468,7 @@ class CurriculumApp {
                 this.showGlobalError('Loading timeout. Please try again.');
                 this.showSection('semester-section');
             }
-        }, 20000); 
+        }, 40000); 
         
         try {
             this.selections.semester = value;
@@ -740,7 +740,7 @@ class CurriculumApp {
                     resolved = true;
                     reject(new Error('Image load timeout'));
                 }
-            }, 10000); 
+            }, 40000); 
             
             const cleanup = () => {
                 if (!resolved) {
@@ -1044,44 +1044,35 @@ class CurriculumApp {
     async loadOtherFile(fileInfo) {
         try {
             const fileIndex = this.otherFiles.findIndex(file => file.path === fileInfo.path);
-            
-            this.previousCurriculumIndex = this.currentImageIndex;
-            this.previousCurriculumImageSet = [...this.currentImageSet];
-            
             this.currentImageSet = this.otherFiles;
             this.currentImageIndex = fileIndex >= 0 ? fileIndex : 0;
-            
             const image = document.getElementById('curriculum-image');
             if (!image) {
                 this.hideLoadingPopup();
                 return;
             }
-            
             try {
                 this.setupLoadingSteps([
                     { name: `Loading ${fileInfo.name}...`, weight: 100 }
                 ]);
                 this.updateLoadingStep(0);
-                
                 image.src = '';
-                
                 await this.loadImageWithRetry(fileInfo.path);
-                
                 image.src = this.addCacheBuster(fileInfo.path);
-                
                 this.updateViewerHeaderInfo(fileInfo.name, 'Additional Resource');
-                
                 this.isViewingAdditionalFile = true;
                 this.updateNavigationControls();
-                
                 this.resetImageTransform();
-                
-                this.lastViewedImagePath = fileInfo.path;
-                this.saveState();
-                
                 this.updateLoadingPopupProgress(100);
-                
                 this.hideLoadingPopup();
+                const filesToPreload = this.otherFiles.filter(f => f.path !== fileInfo.path);
+                if (filesToPreload.length > 0) {
+                    if (window.requestIdleCallback) {
+                        requestIdleCallback(() => this.preloadImageSet(filesToPreload), { timeout: 2000 });
+                    } else {
+                        setTimeout(() => this.preloadImageSet(filesToPreload), 200);
+                    }
+                }
             } catch (error) {
                 if (image) image.src = '';
                 this.showLoadingPopup('Failed to load file');
@@ -1265,9 +1256,8 @@ class CurriculumApp {
         try {
             if (this.isViewingAdditionalFile) {
                 this.isViewingAdditionalFile = false;
-                this.currentImageSet = this.previousCurriculumImageSet;
+                this.currentImageSet = this.previousCurriculumImageSet.length > 0 ? this.previousCurriculumImageSet : this.currentImageSet;
                 this.currentImageIndex = this.previousCurriculumIndex;
-                
                 if (this.currentImageSet.length > 0 && this.currentImageIndex < this.currentImageSet.length) {
                     this.loadImageByIndex(this.currentImageIndex);
                 } else {
@@ -1895,16 +1885,13 @@ class CurriculumApp {
                 { name: 'Loading current image...', weight: 25 }
             ]);
         }
-        
         try {
             const { stream, semester } = this.selections;
-            
             this.updateLoadingStep(0);
             this.currentImageSet = await this.discoverSemesterImages(semester);
             this.currentImageIndex = 0;
-            
+            this.isViewingAdditionalFile = false;
             if (this.isAborted) return;
-            
             if (this.currentImageSet.length === 0) {
                 this.hideLoadingPopup();
                 this.selections.semester = '';
@@ -1913,35 +1900,14 @@ class CurriculumApp {
                 this.showSection('semester-section');
                 return;
             }
-            
             this.updateLoadingStep(1);
-            const othersLoadPromise = this.loadOthersFiles();
-            
+            await this.loadOthersFiles();
             this.updateLoadingStep(2);
-            const preloadPromise = this.preloadImageSet(this.currentImageSet);
-            
             this.updateLoadingStep(3);
-            
             try {
-                await othersLoadPromise;
-                
                 if (this.isAborted) return;
-                
                 let targetIndex = 0;
-                
-                if (this.isViewingAdditionalFile && this.lastViewedImagePath) {
-                    const fileIndex = this.otherFiles.findIndex(file => file.path === this.lastViewedImagePath);
-                    if (fileIndex >= 0) {
-                        this.currentImageSet = this.otherFiles;
-                        this.currentImageIndex = fileIndex;
-                        targetIndex = fileIndex;
-                    } else {
-                        this.isViewingAdditionalFile = false;
-                        this.currentImageSet = await this.discoverSemesterImages(semester);
-                        targetIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
-                            this.previousCurriculumIndex : 0;
-                    }
-                } else if (this.lastViewedImagePath) {
+                if (this.lastViewedImagePath) {
                     const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
                     if (imageIndex !== -1) {
                         targetIndex = imageIndex;
@@ -1951,27 +1917,23 @@ class CurriculumApp {
                 } else if (this.currentImageIndex < this.currentImageSet.length) {
                     targetIndex = this.currentImageIndex;
                 }
-                
                 if (!this.isAborted) {
                     await this.loadImageByIndex(targetIndex);
                 }
-                
-                await preloadPromise;
-                
+                if (!this.isAborted) {
+                    this.preloadAdjacentImages(targetIndex);
+                }
                 if (!this.isAborted) {
                     this.showSection('viewer-section');
                     this.updateNavigationControls();
                 }
-                
             } catch (error) {
                 this.hideLoadingPopup();
                 this.showGlobalError('Error loading image: ' + (error && error.message ? error.message : 'Unknown error'));
                 this.showSection('semester-section');
                 return;
             }
-            
             this.isFirstLoad = false;
-            
         } catch (error) {
             this.hideLoadingPopup();
             this.showGlobalError('Error loading curriculum: ' + (error && error.message ? error.message : 'Unknown error'));
@@ -1980,7 +1942,6 @@ class CurriculumApp {
             this.showSection('semester-section');
             return;
         }
-        
         this.hideLoadingPopup();
     }
 
@@ -1988,21 +1949,17 @@ class CurriculumApp {
         const batchSelect = document.getElementById('batch-select');
         const streamSelect = document.getElementById('stream-select');
         const semesterSelect = document.getElementById('semester-select');
-        
         const batch = batchSelect ? batchSelect.value : this.selections.batch;
         const stream = streamSelect ? streamSelect.value : this.selections.stream;
         const semester = semesterSelect ? semesterSelect.value : this.selections.semester;
-        
         if (!batch || !stream || !semester) {
             return;
         }
-        
         const loadingTimeout = setTimeout(() => {
             this.hideLoadingPopup();
             this.showGlobalError('Loading timeout. Please try again.');
             this.showSection('semester-section');
-        }, this.appConfig.loadingTimeout || 30000);
-        
+        }, this.appConfig.loadingTimeout || 40000);
         try {
             this.showLoadingPopup('Loading curriculum...');
             this.setupLoadingSteps([
@@ -2011,37 +1968,28 @@ class CurriculumApp {
                 { name: 'Preloading images...', weight: 25 },
                 { name: 'Loading current image...', weight: 25 }
             ]);
-            
             this.updateLoadingStep(0);
             this.selections.batch = batch;
             this.selections.stream = stream;
             this.selections.semester = semester;
-            
             const images = await this.discoverSemesterImages(semester);
             this.currentImageSet = images;
             this.currentImageIndex = 0;
-            
             if (this.currentImageSet.length === 0) {
                 this.selections.semester = '';
                 this.updateMainDropdowns();
                 this.showSection('semester-section');
                 return;
             }
-            
             this.updateLoadingStep(1);
             const othersLoadPromise = this.loadOthersFiles();
-            
             this.updateLoadingStep(2);
-            const preloadPromise = this.preloadImageSet(this.currentImageSet);
-            
             this.updateLoadingStep(3);
             await othersLoadPromise;
             await this.loadImageByIndex(0);
-            await preloadPromise;
-            
+            this.preloadAdjacentImages(0);
             this.updateNavigationControls();
             this.showSection('viewer-section');
-            
         } catch (error) {
             console.error('Error in showViewerForCurrentSelection:', error);
             this.hideLoadingPopup();
@@ -2177,17 +2125,19 @@ class CurriculumApp {
 
     saveState() {
         try {
-            const state = {
-                batch: this.selections.batch,
-                stream: this.selections.stream,
-                semester: this.selections.semester,
-                currentImageIndex: this.currentImageIndex,
-                lastViewedImagePath: this.lastViewedImagePath,
-                isViewingAdditionalFile: this.isViewingAdditionalFile,
-                imageScale: this.imageScale,
-                imagePosition: this.imagePosition
-            };
-            localStorage.setItem('iterCurriculumState', JSON.stringify(state));
+            if (!this.isViewingAdditionalFile) {
+                const state = {
+                    batch: this.selections.batch,
+                    stream: this.selections.stream,
+                    semester: this.selections.semester,
+                    currentImageIndex: this.currentImageIndex,
+                    lastViewedImagePath: this.lastViewedImagePath,
+                    isViewingAdditionalFile: false,
+                    imageScale: this.imageScale,
+                    imagePosition: this.imagePosition
+                };
+                localStorage.setItem('iterCurriculumState', JSON.stringify(state));
+            }
         } catch (error) {
         }
     }
@@ -2241,15 +2191,13 @@ class CurriculumApp {
                 this.selections.semester = state.semester || '';
                 this.currentImageIndex = state.currentImageIndex || 0;
                 this.lastViewedImagePath = state.lastViewedImagePath || '';
-                this.isViewingAdditionalFile = state.isViewingAdditionalFile || false;
+                this.isViewingAdditionalFile = false; 
                 this.imageScale = state.imageScale || 1;
                 this.imagePosition = state.imagePosition || { x: 0, y: 0 };
-                
                 if (this.selections.batch && this.selections.stream && this.selections.semester) {
                     this.updateMainDropdowns();
                     this.isLoadingFromState = true;
                 }
-                
                 setTimeout(() => {
                     this.ensureAllDropdownsEnabled();
                 }, 100);
@@ -2446,13 +2394,10 @@ class CurriculumApp {
             if (!this.selections.batch || !this.selections.stream || !this.selections.semester) {
                 return;
             }
-            
             this.showLoadingPopup('Restoring session...');
             this.updateLoadingPopupProgress(10);
-            
             let loadingTimeout = null;
             let isCompleted = false;
-            
             const completeLoading = () => {
                 if (!isCompleted) {
                     isCompleted = true;
@@ -2463,33 +2408,27 @@ class CurriculumApp {
                     this.hideLoadingPopup();
                 }
             };
-            
             loadingTimeout = setTimeout(() => {
                 if (!isCompleted) {
                     completeLoading();
                     this.showGlobalError('Restoration timeout. Please try again.');
                     this.showSection('semester-section');
                 }
-            }, 25000);
-            
+            }, 40000);
             try {
                 this.setupLoadingSteps([
                     { name: 'Loading curriculum...', weight: 30 },
                     { name: 'Checking cache...', weight: 30 },
                     { name: 'Restoring image...', weight: 40 }
                 ]);
-                
                 this.updateLoadingStep(0);
                 this.updateLoadingPopupProgress(15);
-                
                 const [images, othersResult] = await Promise.all([
                     this.discoverSemesterImages(this.selections.semester),
                     this.loadOthersFiles()
                 ]);
-                
                 this.currentImageSet = images;
                 this.updateLoadingPopupProgress(30);
-                
                 if (this.currentImageSet.length === 0) {
                     completeLoading();
                     this.selections.semester = '';
@@ -2498,27 +2437,11 @@ class CurriculumApp {
                     this.showSection('semester-section');
                     return;
                 }
-                
                 this.updateLoadingStep(1);
                 this.updateLoadingPopupProgress(50);
-                
                 let targetIndex = 0;
                 let targetImagePath = '';
-                
-                if (this.isViewingAdditionalFile && this.lastViewedImagePath) {
-                    const fileIndex = this.otherFiles.findIndex(file => file.path === this.lastViewedImagePath);
-                    if (fileIndex >= 0) {
-                        this.currentImageSet = this.otherFiles;
-                        this.currentImageIndex = fileIndex;
-                        targetIndex = fileIndex;
-                        targetImagePath = this.lastViewedImagePath;
-                    } else {
-                        this.isViewingAdditionalFile = false;
-                        targetIndex = (this.previousCurriculumIndex < this.currentImageSet.length)
-                            ? this.previousCurriculumIndex : 0;
-                        targetImagePath = this.currentImageSet[targetIndex]?.path || '';
-                    }
-                } else if (this.lastViewedImagePath) {
+                if (this.lastViewedImagePath) {
                     const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
                     if (imageIndex !== -1) {
                         targetIndex = imageIndex;
@@ -2533,28 +2456,19 @@ class CurriculumApp {
                         ? this.previousCurriculumIndex : 0;
                     targetImagePath = this.currentImageSet[targetIndex]?.path || '';
                 }
-                
                 if (targetIndex < 0 || targetIndex >= this.currentImageSet.length) {
                     targetIndex = 0;
                     targetImagePath = this.currentImageSet[0]?.path || '';
                 }
-                
                 this.updateLoadingStep(2);
                 this.updateLoadingPopupProgress(70);
-                
                 if (targetImagePath && this.imageCache.has(targetImagePath)) {
                     const image = document.getElementById('curriculum-image');
                     if (image) {
                         image.src = this.addCacheBuster(targetImagePath);
                         image.classList.add('fade-in');
-                        
                         const imageInfo = this.currentImageSet[targetIndex];
-                        if (this.isViewingAdditionalFile) {
-                            this.updateViewerHeaderInfo(imageInfo.name, 'Additional Resource');
-                        } else {
-                            this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
-                        }
-                        
+                        this.updateViewerHeaderInfo(imageInfo.name, `${this.getStreamDisplayName()} - ${this.selections.batch}`);
                         this.updateLoadingPopupProgress(100);
                         this.currentImageIndex = targetIndex;
                         this.lastViewedImagePath = targetImagePath;
@@ -2562,16 +2476,12 @@ class CurriculumApp {
                 } else {
                     await this.loadImageByIndex(targetIndex);
                 }
-                
                 this.updateNavigationControls();
                 this.showSection('viewer-section');
-                
                 setTimeout(() => {
                     this.checkForNewImages();
                 }, 3000);
-                
                 completeLoading();
-                
             } catch (error) {
                 console.error('Error in restoreToViewer:', error);
                 completeLoading();

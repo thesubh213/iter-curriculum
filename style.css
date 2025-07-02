@@ -2195,3 +2195,21 @@ body {
         font-size: 16px !important;
     }
 }
+
+/* Restrict dropdown width for larger screens */
+@media (min-width: 769px) {
+  .dropdown-container {
+    max-width: 420px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
+    padding: 2.5rem 2rem !important;
+  }
+  .dropdown {
+    max-width: 400px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
+    padding: 1.25rem 1.5rem !important;
+  }
+}
