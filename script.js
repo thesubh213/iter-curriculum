@@ -19,7 +19,7 @@ class CurriculumApp {
             
             this.appConfig = {
                 maxCacheSize: globalConfig.app?.maxCacheSize ?? 50,
-                loadingTimeout: globalConfig.app?.loadingTimeout ?? 30000,
+                loadingTimeout: globalConfig.app?.loadingTimeout ?? 20000,
                 retryAttempts: globalConfig.app?.retryAttempts ?? 3
             };
         } catch (error) {
@@ -39,7 +39,7 @@ class CurriculumApp {
             
             this.appConfig = {
                 maxCacheSize: 50,
-                loadingTimeout: 30000,
+                loadingTimeout: 20000,
                 retryAttempts: 3
             };
         }
@@ -97,6 +97,11 @@ class CurriculumApp {
             this.loadSavedState();
             this.updateUI();
             
+            setTimeout(() => {
+                this.ensureAllDropdownsEnabled();
+                this.fixDropdownCSSConflicts();
+            }, 100);
+            
             if (this.isLoadingFromState && this.selections.batch && this.selections.stream && this.selections.semester) {
                 requestAnimationFrame(() => {
                     this.restoreToViewer();
@@ -111,6 +116,60 @@ class CurriculumApp {
                 alert('Failed to initialize the application. Please refresh the page.');
             }
         }
+    }
+    
+    fixDropdownCSSConflicts() {
+        // Remove any CSS that might be interfering with dropdown functionality
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Override any conflicting CSS */
+            .dropdown-container,
+            .dropdown-wrapper,
+            .dropdown {
+                pointer-events: auto !important;
+                user-select: auto !important;
+                -webkit-user-select: auto !important;
+                -moz-user-select: auto !important;
+                -ms-user-select: auto !important;
+                cursor: pointer !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                display: block !important;
+                position: relative !important;
+                z-index: 10 !important;
+            }
+            
+            .dropdown:not([disabled]) {
+                pointer-events: auto !important;
+                cursor: pointer !important;
+                opacity: 1 !important;
+            }
+            
+            .dropdown option {
+                pointer-events: auto !important;
+                cursor: pointer !important;
+                user-select: auto !important;
+                -webkit-user-select: auto !important;
+                -moz-user-select: auto !important;
+                -ms-user-select: auto !important;
+            }
+            
+            /* Ensure no overlays block dropdowns */
+            .section,
+            .main-content,
+            body {
+                pointer-events: auto !important;
+            }
+            
+            /* Fix for mobile */
+            @media (max-width: 768px) {
+                .dropdown {
+                    min-height: 44px !important;
+                    touch-action: manipulation !important;
+                }
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     async registerServiceWorker() {
@@ -145,12 +204,34 @@ class CurriculumApp {
             const streamSelect = document.getElementById('stream-select');
             const semesterSelect = document.getElementById('semester-select');
             const resetBtn = document.getElementById('reset-selection-btn');
+            
+            this._batchChangeHandler = (e) => this.handleBatchChange(e.target.value);
+            this._streamChangeHandler = (e) => this.handleStreamChange(e.target.value);
+            this._semesterChangeHandler = (e) => this.handleSemesterChange(e.target.value);
+            
             if (!batchSelect || !streamSelect || !semesterSelect) {
                 throw new Error('Required DOM elements not found');
             }
-            batchSelect.addEventListener('change', (e) => this.handleBatchChange(e.target.value));
-            streamSelect.addEventListener('change', (e) => this.handleStreamChange(e.target.value));
-            semesterSelect.addEventListener('change', (e) => this.handleSemesterChange(e.target.value));
+            
+            this.ensureAllDropdownsEnabled();
+            
+            batchSelect.addEventListener('change', this._batchChangeHandler);
+            streamSelect.addEventListener('change', this._streamChangeHandler);
+            semesterSelect.addEventListener('change', this._semesterChangeHandler);
+            
+            batchSelect.addEventListener('click', (e) => {
+                e.stopPropagation();
+                batchSelect.focus();
+            });
+            streamSelect.addEventListener('click', (e) => {
+                e.stopPropagation();
+                streamSelect.focus();
+            });
+            semesterSelect.addEventListener('click', (e) => {
+                e.stopPropagation();
+                semesterSelect.focus();
+            });
+            
             if (resetBtn) {
                 resetBtn.addEventListener('click', () => this.resetToInitialSelection());
             }
@@ -273,6 +354,7 @@ class CurriculumApp {
         if (streamSelect) {
             streamSelect.value = '';
             streamSelect.focus();
+            this.ensureAllDropdownsEnabled();
         }
         this.showSection('stream-section');
     }
@@ -293,6 +375,7 @@ class CurriculumApp {
 
         this.selections.stream = value;
         this.resetFromStream();
+        this.ensureAllDropdownsEnabled();
         this.showSection('semester-section');
     }
 
@@ -367,7 +450,7 @@ class CurriculumApp {
             this.hideLoadingPopup();
             this.showGlobalError('Loading timeout. Please try again.');
             this.showSection('semester-section');
-        }, this.appConfig.loadingTimeout || 30000);
+        }, this.appConfig.loadingTimeout || 20000); 
         
         try {
             await new Promise(resolve => {
@@ -560,10 +643,8 @@ class CurriculumApp {
                 const img = new Image();
                 let timedOut = false;
                 let resolved = false;
-                
-                // Increased timeout for better reliability
-                const timeout = Math.min(this.appConfig.loadingTimeout || 20000, 10000);
-                
+                // Use at least 20s timeout for image existence check
+                const timeout = this.appConfig.loadingTimeout || 20000;
                 const timer = setTimeout(() => {
                     if (!resolved) {
                         timedOut = true;
@@ -595,7 +676,6 @@ class CurriculumApp {
                 
                 img.crossOrigin = 'anonymous';
                 
-                // Use cache buster for better reliability
                 const cacheBustedPath = this.addCacheBuster(imagePath);
                 
                 try {
@@ -643,24 +723,21 @@ class CurriculumApp {
         if (this.imageCache.has(imagePath)) {
             return this.imageCache.get(imagePath);
         }
-        
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.decoding = 'async';
             img.loading = 'eager';
             img.fetchPriority = 'high';
             img.crossOrigin = 'anonymous';
-            
             let timedOut = false;
             let resolved = false;
-            
             const timer = setTimeout(() => {
                 if (!resolved) {
                     timedOut = true;
                     resolved = true;
                     reject(new Error('Image load timeout'));
                 }
-            }, this.appConfig.loadingTimeout || 10000);
+            }, this.appConfig.loadingTimeout || 20000);
             
             const cleanup = () => {
                 if (!resolved) {
@@ -1963,6 +2040,8 @@ class CurriculumApp {
             if (batchSelect) batchSelect.value = this.selections.batch || '';
             if (streamSelect) streamSelect.value = this.selections.stream || '';
             if (semesterSelect) semesterSelect.value = this.selections.semester || '';
+            
+            this.ensureAllDropdownsEnabled();
         } catch (error) {}
     }
 
@@ -1978,6 +2057,71 @@ class CurriculumApp {
         }
         const errorPopup = document.getElementById('global-error-popup');
         if (errorPopup) errorPopup.classList.remove('active');
+        
+        this.ensureAllDropdownsEnabled();
+    }
+    
+    ensureAllDropdownsEnabled() {
+        const batchSelect = document.getElementById('batch-select');
+        const streamSelect = document.getElementById('stream-select');
+        const semesterSelect = document.getElementById('semester-select');
+        
+        [batchSelect, streamSelect, semesterSelect].forEach(select => {
+            if (select) {
+                select.disabled = false;
+                select.removeAttribute('disabled');
+                
+                select.style.pointerEvents = 'auto';
+                select.style.opacity = '1';
+                select.style.cursor = 'pointer';
+                select.style.userSelect = 'auto';
+                select.style.webkitUserSelect = 'auto';
+                select.style.mozUserSelect = 'auto';
+                select.style.msUserSelect = 'auto';
+                
+                select.classList.remove('disabled', 'inactive', 'hidden', 'loading');
+                
+                select.style.visibility = 'visible';
+                select.style.display = 'block';
+                select.style.position = 'relative';
+                select.style.zIndex = '10';
+                select.tabIndex = 0;
+                
+                select.style.background = 'var(--white)';
+                select.style.color = 'var(--text-primary)';
+                select.style.border = '2px solid var(--bg-tertiary)';
+                select.style.borderRadius = 'var(--border-radius-lg)';
+                select.style.padding = '1.5rem 1.75rem';
+                select.style.fontSize = '1.1rem';
+                select.style.fontWeight = '600';
+                select.style.boxShadow = 'var(--shadow-sm)';
+                select.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                
+                select.style.appearance = 'none';
+                select.style.webkitAppearance = 'none';
+                select.style.mozAppearance = 'none';
+                select.style.backgroundImage = 'none';
+                
+                select.addEventListener('focus', () => {
+                    select.style.borderColor = 'var(--primary-color)';
+                    select.style.boxShadow = '0 0 0 4px rgba(139, 125, 107, 0.15), var(--shadow-lg)';
+                });
+                
+                select.addEventListener('blur', () => {
+                    select.style.borderColor = 'var(--bg-tertiary)';
+                    select.style.boxShadow = 'var(--shadow-sm)';
+                });
+                
+                select.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    select.focus();
+                });
+                
+                select.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                });
+            }
+        });
     }
 
     saveState() {
@@ -2054,6 +2198,10 @@ class CurriculumApp {
                     this.updateMainDropdowns();
                     this.isLoadingFromState = true;
                 }
+                
+                setTimeout(() => {
+                    this.ensureAllDropdownsEnabled();
+                }, 100);
             }
         } catch (error) {
         }
@@ -2076,6 +2224,20 @@ class CurriculumApp {
             if (this.cacheCheckInterval) {
                 clearInterval(this.cacheCheckInterval);
                 this.cacheCheckInterval = null;
+            }
+            
+            const batchSelect = document.getElementById('batch-select');
+            const streamSelect = document.getElementById('stream-select');
+            const semesterSelect = document.getElementById('semester-select');
+            
+            if (batchSelect && this._batchChangeHandler) {
+                batchSelect.removeEventListener('change', this._batchChangeHandler);
+            }
+            if (streamSelect && this._streamChangeHandler) {
+                streamSelect.removeEventListener('change', this._streamChangeHandler);
+            }
+            if (semesterSelect && this._semesterChangeHandler) {
+                semesterSelect.removeEventListener('change', this._semesterChangeHandler);
             }
             
             this.currentImageSet = [];
@@ -2228,34 +2390,25 @@ class CurriculumApp {
             if (!this.selections.batch || !this.selections.stream || !this.selections.semester) {
                 return;
             }
-            
-            // Show minimal loading for faster restoration
             this.showLoadingPopup('Restoring session...');
-            
-            // Reduced timeout for faster failure detection
+            // Use 20s timeout for restoration
             const loadingTimeout = setTimeout(() => {
                 this.hideLoadingPopup();
                 this.showGlobalError('Restoration timeout. Please try again.');
                 this.showSection('semester-section');
-            }, 15000);
-            
+            }, this.appConfig.loadingTimeout || 20000);
             try {
-                // Simplified loading steps for faster restoration
                 this.setupLoadingSteps([
                     { name: 'Loading curriculum...', weight: 50 },
                     { name: 'Restoring image...', weight: 50 }
                 ]);
-                
                 this.updateLoadingStep(0);
-                
                 // Run discovery and others loading in parallel for speed
                 const [images, othersResult] = await Promise.all([
                     this.discoverSemesterImages(this.selections.semester),
                     this.loadOthersFiles()
                 ]);
-                
                 this.currentImageSet = images;
-                
                 if (this.currentImageSet.length === 0) {
                     this.selections.semester = '';
                     this.isViewingAdditionalFile = false;
@@ -2264,12 +2417,9 @@ class CurriculumApp {
                     this.showSection('semester-section');
                     return;
                 }
-                
                 this.updateLoadingStep(1);
-                
-                // Determine which image to load
+                // Robust restoration logic:
                 let targetIndex = 0;
-                
                 if (this.isViewingAdditionalFile && this.lastViewedImagePath) {
                     const fileIndex = this.otherFiles.findIndex(file => file.path === this.lastViewedImagePath);
                     if (fileIndex >= 0) {
@@ -2278,33 +2428,31 @@ class CurriculumApp {
                         targetIndex = fileIndex;
                     } else {
                         this.isViewingAdditionalFile = false;
-                        targetIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
-                            this.previousCurriculumIndex : 0;
+                        targetIndex = (this.previousCurriculumIndex < this.currentImageSet.length)
+                            ? this.previousCurriculumIndex : 0;
                     }
                 } else if (this.lastViewedImagePath) {
                     const imageIndex = this.currentImageSet.findIndex(img => img.path === this.lastViewedImagePath);
                     if (imageIndex !== -1) {
                         targetIndex = imageIndex;
                     } else {
-                        targetIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
-                            this.previousCurriculumIndex : 0;
+                        targetIndex = (this.previousCurriculumIndex < this.currentImageSet.length)
+                            ? this.previousCurriculumIndex : 0;
                     }
                 } else {
-                    targetIndex = this.previousCurriculumIndex < this.currentImageSet.length ? 
-                        this.previousCurriculumIndex : 0;
+                    targetIndex = (this.previousCurriculumIndex < this.currentImageSet.length)
+                        ? this.previousCurriculumIndex : 0;
                 }
-                
-                // Load the target image
+                // Defensive: if targetIndex is out of bounds, fallback to 0
+                if (targetIndex < 0 || targetIndex >= this.currentImageSet.length) {
+                    targetIndex = 0;
+                }
                 await this.loadImageByIndex(targetIndex);
-                
                 this.updateNavigationControls();
                 this.showSection('viewer-section');
-                
-                // Check for new images in background
                 setTimeout(() => {
                     this.checkForNewImages();
                 }, 3000);
-                
             } catch (error) {
                 console.error('Error in restoreToViewer:', error);
                 this.hideLoadingPopup();
@@ -2339,28 +2487,47 @@ class CurriculumApp {
     }
 
     ensureDropdownsEnabledAndBound(sectionId) {
+        if (!this._batchChangeHandler) {
+            this._batchChangeHandler = (e) => this.handleBatchChange(e.target.value);
+        }
+        if (!this._streamChangeHandler) {
+            this._streamChangeHandler = (e) => this.handleStreamChange(e.target.value);
+        }
+        if (!this._semesterChangeHandler) {
+            this._semesterChangeHandler = (e) => this.handleSemesterChange(e.target.value);
+        }
+
         if (sectionId === 'batch-section') {
             const batchSelect = document.getElementById('batch-select');
             if (batchSelect) {
                 batchSelect.disabled = false;
-                batchSelect.removeEventListener('change', this._batchChangeHandler);
-                this._batchChangeHandler = (e) => this.handleBatchChange(e.target.value);
+                batchSelect.style.pointerEvents = 'auto';
+                batchSelect.style.opacity = '1';
+                if (this._batchChangeHandler) {
+                    batchSelect.removeEventListener('change', this._batchChangeHandler);
+                }
                 batchSelect.addEventListener('change', this._batchChangeHandler);
             }
         } else if (sectionId === 'stream-section') {
             const streamSelect = document.getElementById('stream-select');
             if (streamSelect) {
                 streamSelect.disabled = false;
-                streamSelect.removeEventListener('change', this._streamChangeHandler);
-                this._streamChangeHandler = (e) => this.handleStreamChange(e.target.value);
+                streamSelect.style.pointerEvents = 'auto';
+                streamSelect.style.opacity = '1';
+                if (this._streamChangeHandler) {
+                    streamSelect.removeEventListener('change', this._streamChangeHandler);
+                }
                 streamSelect.addEventListener('change', this._streamChangeHandler);
             }
         } else if (sectionId === 'semester-section') {
             const semesterSelect = document.getElementById('semester-select');
             if (semesterSelect) {
                 semesterSelect.disabled = false;
-                semesterSelect.removeEventListener('change', this._semesterChangeHandler);
-                this._semesterChangeHandler = (e) => this.handleSemesterChange(e.target.value);
+                semesterSelect.style.pointerEvents = 'auto';
+                semesterSelect.style.opacity = '1';
+                if (this._semesterChangeHandler) {
+                    semesterSelect.removeEventListener('change', this._semesterChangeHandler);
+                }
                 semesterSelect.addEventListener('change', this._semesterChangeHandler);
             }
         }
@@ -2370,6 +2537,12 @@ let app;
 
 document.addEventListener('DOMContentLoaded', () => {
     app = new CurriculumApp();
+    
+    setTimeout(() => {
+        if (app) {
+            app.ensureAllDropdownsEnabled();
+        }
+    }, 200);
 });
 
 document.addEventListener('visibilitychange', () => {
