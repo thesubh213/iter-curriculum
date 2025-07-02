@@ -265,6 +265,7 @@ body {
     pointer-events: auto !important;
     z-index: 5 !important;
     max-width: 100%;
+    min-width: 0;
     box-sizing: border-box;
 }
 
@@ -338,6 +339,7 @@ body {
     position: relative;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     margin-bottom: 0.5rem;
     transition: transform 0.3s ease;
     pointer-events: auto !important;
@@ -349,6 +351,7 @@ body {
 .dropdown {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     padding: 1.5rem 1.75rem;
     font-size: 1.1rem;
     font-weight: 600;
@@ -373,6 +376,7 @@ body {
     box-sizing: border-box;
     word-wrap: break-word;
     text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .dropdown::before {
@@ -440,6 +444,9 @@ body {
     -webkit-user-select: auto !important;
     -moz-user-select: auto !important;
     -ms-user-select: auto !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
 }
 
 .dropdown option:hover {
@@ -2119,75 +2126,72 @@ body {
 .dropdown-container,
 .dropdown-wrapper,
 .dropdown {
-    transform: translateZ(0) !important;
-    backface-visibility: hidden !important;
-    will-change: auto !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
 }
 
-.dropdown:active {
-    transform: translateY(0) !important;
-    box-shadow: var(--shadow-lg) !important;
+.dropdown {
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
 }
 
-.dropdown-container * {
+.dropdown option {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Prevent horizontal overflow */
+.section,
+.main-content,
+.container {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure dropdowns are clickable and accessible */
+.dropdown:not([disabled]) {
     pointer-events: auto !important;
+    cursor: pointer !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    position: relative !important;
+    z-index: 10 !important;
 }
 
-.dropdown-container .dropdown-icon {
-    pointer-events: none !important;
-}
-
-@media (max-width: 480px) {
+/* Mobile optimizations */
+@media (max-width: 768px) {
     .dropdown {
-        font-size: 16px !important;
         min-height: 44px !important;
-        padding: 1rem 1.5rem !important;
+        touch-action: manipulation !important;
+        font-size: 16px !important;
+    }
+    
+    .dropdown-container {
+        padding: 2rem 1.5rem !important;
+        max-width: calc(100vw - 2rem) !important;
+        margin: 0 1rem !important;
     }
 }
 
-.dropdown-container:hover .dropdown {
-    animation: none !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-.dropdown,
-.dropdown option {
-    all: unset;
-    display: block;
-    width: 100%;
-    padding: 1.5rem 1.75rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-    border: 2px solid var(--bg-tertiary);
-    border-radius: var(--border-radius-lg);
-    background: var(--white);
-    color: var(--text-primary);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-    appearance: none;
-    outline: none;
-    box-shadow: var(--shadow-sm);
-    position: relative;
-    overflow: hidden;
-    letter-spacing: -0.01em;
-    pointer-events: auto !important;
-    z-index: 10 !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-
-.dropdown option {
-    padding: 1.25rem 1.5rem;
-    background: var(--white);
-    color: var(--text-primary);
-    font-weight: 500;
-    font-size: 1rem;
-    border: none;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    pointer-events: auto !important;
-    user-select: auto !important;
-    -webkit-user-select: auto !important;
-    -moz-user-select: auto !important;
-    -ms-user-select: auto !important;
+@media (max-width: 480px) {
+    .dropdown-container {
+        padding: 1.5rem 1rem !important;
+        max-width: calc(100vw - 1rem) !important;
+        margin: 0 0.5rem !important;
+    }
+    
+    .dropdown {
+        padding: 1rem 1.25rem !important;
+        font-size: 16px !important;
+    }
 }
