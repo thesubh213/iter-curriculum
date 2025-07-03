@@ -405,6 +405,12 @@ h2::after {
     transform: translateY(1px) scale(0.98);
 }
 
+.back-button-spacer {
+    height: 3.5rem;
+    width: 100%;
+    display: block;
+}
+
 #viewer-container {
     background: var(--glass-bg);
     backdrop-filter: blur(20px);
@@ -756,15 +762,14 @@ h2::after {
 
 #loading-bar-inner {
     height: 100%;
-    background: var(--gradient-primary);
+    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
     width: 0;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     animation: loadingBarProgress 1.5s ease infinite alternate;
     border-radius: var(--radius-lg);
-    background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.2) 75%, transparent 75%, transparent);
+    background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.3) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.3) 50%, rgba(255, 255, 255, 0.3) 75%, transparent 75%, transparent);
     background-size: 1.5rem 1.5rem;
-    position: relative;
-    z-index: 2;
+    box-shadow: 0 0 15px rgba(107, 142, 120, 0.4);
 }
 
 #loading-percentage {
@@ -806,17 +811,6 @@ h2::after {
     animation: zoomIn 0.5s ease forwards;
     border: 1px solid var(--glass-border);
     position: relative;
-}
-
-.modal::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--gradient-primary);
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
 .modal-header {
@@ -2468,9 +2462,9 @@ button:disabled svg {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -2480,8 +2474,8 @@ button:disabled svg {
 
 .initializing-popup {
     background: var(--glass-bg);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-xl);
     padding: 3.5rem 3rem;
@@ -2537,7 +2531,7 @@ button:disabled svg {
     background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
     border-radius: 4px;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 0 10px rgba(107, 142, 120, 0.3);
+    box-shadow: 0 0 15px rgba(107, 142, 120, 0.5);
     width: 0%;
 }
 
@@ -2627,26 +2621,15 @@ button:disabled svg {
     opacity: 0;
 }
 
-.popup-notification::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--gradient-secondary);
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-}
-
 .popup-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(45, 62, 64, 0.7);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
+    background: rgba(45, 62, 64, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     z-index: 1999;
     animation: fadeIn 0.3s ease forwards;
     opacity: 0;

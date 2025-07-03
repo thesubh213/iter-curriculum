@@ -620,13 +620,14 @@ function showWelcomePopup() {
 }
 
 function showInitializingPopup() {
+    console.log('Fast initializing for first time setup');
     const overlay = document.createElement('div');
     overlay.className = 'popup-overlay initializing-overlay';
     overlay.innerHTML = `
         <div class="initializing-popup">
             <div class="initializing-spinner"></div>
-            <h3>Initializing</h3>
-            <p>Loading image paths...</p>
+            <h3>Setting Up</h3>
+            <p>Preparing your workspace...</p>
             <div class="initializing-progress">
                 <div class="progress-bar">
                     <div class="progress-fill" id="init-progress-fill"></div>
@@ -638,23 +639,57 @@ function showInitializingPopup() {
     
     document.body.appendChild(overlay);
     
-    loadAllImagePaths(true).then(() => {
-        localStorage.setItem(FIRST_VISIT_KEY, 'false');
-        closeInitializingPopup();
-    }).catch(() => {
-        localStorage.setItem(FIRST_VISIT_KEY, 'false');
-        closeInitializingPopup();
-    });
+    const progressFill = document.getElementById('init-progress-fill');
+    const progressText = document.getElementById('init-progress-text');
+    
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += 25;
+        if (progressFill) progressFill.style.width = `${progress}%`;
+        if (progressText) progressText.textContent = `${progress}%`;
+        
+        if (progress >= 100) {
+            clearInterval(progressInterval);
+            localStorage.setItem(FIRST_VISIT_KEY, 'false');
+            
+            setTimeout(() => {
+                closeInitializingPopup();
+                console.log('Fast setup complete, initializing year dropdown');
+                setTimeout(() => {
+                    if (window.domElements && window.domElements.yearDropdown && typeof CONFIG !== 'undefined' && CONFIG.years) {
+                        initializeYearDropdownGlobal();
+                    } else {
+                        console.error('DOM elements or CONFIG not ready, retrying...');
+                        setTimeout(() => {
+                            initializeYearDropdownGlobal();
+                        }, 500);
+                    }
+                }, 300);
+            }, 300);
+        }
+    }, 200); 
 }
 
 function showRefreshingPopup() {
+    console.log('Fast session restoration - skipping slow path loading');
+    const state = window.appState;
+    
+    if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
+        console.log('Starting immediate session restoration');
+        setTimeout(() => {
+            restoreSession(state.lastVisited);
+        }, 100); 
+        return;
+    }
+    
+    console.log('No session to restore, showing initializing popup');
     const overlay = document.createElement('div');
     overlay.className = 'popup-overlay initializing-overlay';
     overlay.innerHTML = `
         <div class="initializing-popup">
             <div class="initializing-spinner"></div>
-            <h3>Refreshing</h3>
-            <p>Checking for new images...</p>
+            <h3>Setting Up</h3>
+            <p>Preparing your workspace...</p>
             <div class="initializing-progress">
                 <div class="progress-bar">
                     <div class="progress-fill" id="refresh-progress-fill"></div>
@@ -666,25 +701,20 @@ function showRefreshingPopup() {
     
     document.body.appendChild(overlay);
     
-    loadAllImagePaths(false).then(() => {
+    setTimeout(() => {
         closeInitializingPopup();
-        
-        const state = window.appState;
-        if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
-            setTimeout(() => {
-                restoreSession(state.lastVisited);
-            }, 500);
-        }
-    }).catch(() => {
-        closeInitializingPopup();
-        
-        const state = window.appState;
-        if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
-            setTimeout(() => {
-                restoreSession(state.lastVisited);
-            }, 500);
-        }
-    });
+        setTimeout(() => {
+            // Ensure DOM is ready and CONFIG is available
+            if (window.domElements && window.domElements.yearDropdown && typeof CONFIG !== 'undefined' && CONFIG.years) {
+                initializeYearDropdownGlobal();
+            } else {
+                console.error('DOM elements or CONFIG not ready, retrying...');
+                setTimeout(() => {
+                    initializeYearDropdownGlobal();
+                }, 500);
+            }
+        }, 300);
+    }, 1000);
 }
 
 function closeInitializingPopup() {
@@ -824,6 +854,8 @@ function restoreSession(lastVisited) {
         return;
     }
     
+    console.log('Fast restoring session with state:', lastVisited);
+    
     state.currentYear = lastVisited.year;
     state.currentStream = lastVisited.stream;
     state.currentSemester = lastVisited.semester;
@@ -834,10 +866,138 @@ function restoreSession(lastVisited) {
     dom.selectionContainer.classList.add('hidden');
     dom.viewerContainer.classList.remove('hidden');
     
+    showLoadingGlobal("Restoring...");
+    
     setupEventListenersForRestore();
     state.eventListenersSetup = true;
     
-    checkImagePartsForRestore();
+    checkImagePartsForRestoreFast();
+}
+
+function checkImagePartsForRestoreFast() {
+    const state = window.appState;
+    const dom = window.domElements;
+    
+    console.log('Fast image check for restoration - prioritizing cached images');
+    
+    state.totalParts = 1;
+    state.hasSingleImage = true;
+    state.currentPart = 1;
+    
+    const mainImagePath = CONFIG.getImagePath(
+        state.currentYear, 
+        state.currentStream, 
+        state.currentSemester
+    );
+    
+    console.log('Attempting fast load of main image:', mainImagePath);
+    
+    loadImageForRestoreFast(mainImagePath, () => {
+        console.log('Image loaded successfully from cache');
+        updateImageNavigationButtonsForRestore();
+        updateHeaderForRestore();
+        saveLastVisitedStateForRestore();
+        hideLoadingGlobal();
+        
+        setTimeout(() => {
+            ensureDownloadAndClickEventListeners();
+        }, 100);
+        
+        checkAdditionalPartsInBackground();
+    }, () => {
+        console.log('Main image not available, checking parts');
+        checkImagePartsForRestore();
+    });
+}
+
+function loadImageForRestoreFast(src, onSuccess, onError) {
+    const dom = window.domElements;
+    
+    console.log('Fast loading image for restore:', src);
+    
+    if (dom.curriculumImage) {
+        const timeoutId = setTimeout(() => {
+            console.log('Image loading timeout, falling back to slower method');
+            if (onError) onError();
+        }, 1500); 
+        
+        dom.curriculumImage.onload = function() {
+            clearTimeout(timeoutId);
+            console.log('Image loaded successfully in fast mode');
+            if (dom.loadingContainer) {
+                dom.loadingContainer.classList.add('hidden');
+            }
+            dom.curriculumImage.classList.remove('hidden');
+            if (onSuccess) onSuccess();
+        };
+        
+        dom.curriculumImage.onerror = function() {
+            clearTimeout(timeoutId);
+            console.log('Error loading image in fast mode');
+            if (onError) onError();
+        };
+        
+        dom.curriculumImage.src = src;
+        
+        
+    }
+}
+
+function checkAdditionalPartsInBackground() {
+    const state = window.appState;
+    
+    console.log('Checking for additional parts in background');
+    
+    const checkPartPromises = [];
+    let maxParts = 1;
+    
+    for (let i = 2; i <= 5; i++) { 
+        const imagePath = CONFIG.getImagePath(
+            state.currentYear, 
+            state.currentStream, 
+            state.currentSemester, 
+            i
+        );
+        
+        const partPromise = imageExistsFast(imagePath)
+            .then(exists => {
+                if (exists) {
+                    maxParts = i;
+                    state.hasSingleImage = false;
+                }
+            });
+            
+        checkPartPromises.push(partPromise);
+    }
+    
+    Promise.all(checkPartPromises).then(() => {
+        if (maxParts > 1) {
+            state.totalParts = maxParts;
+            updateImageNavigationButtonsForRestore();
+            console.log(`Found ${maxParts} parts in background check`);
+        }
+    }).catch(error => {
+        console.log('Background check completed with some errors:', error);
+    });
+}
+
+function imageExistsFast(url) {
+    return new Promise(resolve => {
+        const img = new Image();
+        const timeout = setTimeout(() => {
+            resolve(false);
+        }, 500); 
+        
+        img.onload = () => {
+            clearTimeout(timeout);
+            resolve(true);
+        };
+        img.onerror = () => {
+            clearTimeout(timeout);
+            resolve(false);
+        };
+        img.src = url;
+    });
 }
 
 function checkImagePartsForRestore() {
@@ -884,6 +1044,7 @@ function checkImagePartsForRestore() {
     }
     
     Promise.all(checkPartPromises).then(() => {
+        console.log('Image check completed for restoration. Total parts:', state.totalParts);
         if (state.totalParts > 0) {
             loadImageWithPartForRestore();
             updateImageNavigationButtonsForRestore();
@@ -897,8 +1058,13 @@ function checkImagePartsForRestore() {
             }, 500);
         } else {
             hideLoadingGlobal();
+            console.log('No images found during restoration');
             showNoImagesPopup();
         }
+    }).catch(error => {
+        console.error('Error during image check for restoration:', error);
+        hideLoadingGlobal();
+        showNoImagesPopup();
     });
 }
 
@@ -938,9 +1104,29 @@ function loadImageWithPartForRestore() {
 function loadImageForRestore(src) {
     const dom = window.domElements;
     
+    console.log('Loading image for restore:', src);
+    
     if (dom.curriculumImage) {
+        if (dom.loadingContainer) {
+            dom.loadingContainer.classList.remove('hidden');
+        }
+        
+        dom.curriculumImage.onload = function() {
+            console.log('Image loaded successfully for restore');
+            if (dom.loadingContainer) {
+                dom.loadingContainer.classList.add('hidden');
+            }
+            dom.curriculumImage.classList.remove('hidden');
+        };
+        
+        dom.curriculumImage.onerror = function() {
+            console.error('Error loading image for restore:', src);
+            if (dom.loadingContainer) {
+                dom.loadingContainer.classList.add('hidden');
+            }
+        };
+        
         dom.curriculumImage.src = src;
-        dom.curriculumImage.classList.remove('hidden');
     }
     if (dom.loadingContainer) {
         dom.loadingContainer.classList.add('hidden');
@@ -1254,15 +1440,34 @@ function initializeYearDropdownGlobal() {
         return;
     }
     
+    if (!dom.yearDropdown) {
+        console.error('Year dropdown element not found');
+        return;
+    }
+    
+    if (typeof CONFIG === 'undefined' || !CONFIG.years) {
+        console.error('CONFIG object or years not available');
+        return;
+    }
+    
     console.log('Initializing year dropdown globally');
     
-    dom.yearDropdown.innerHTML = '<option value="">Select Year</option>';
+    dom.yearDropdown.innerHTML = '';
+    dom.yearDropdown.onchange = null;
+    
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select Year';
+    dom.yearDropdown.appendChild(defaultOption);
+    
     CONFIG.years.forEach(year => {
         const option = document.createElement('option');
         option.value = year;
         option.textContent = year;
         dom.yearDropdown.appendChild(option);
     });
+    
+    console.log(`Year dropdown populated with ${CONFIG.years.length} options`);
     
     dom.yearDropdown.addEventListener('change', () => {
         console.log('Year changed to:', dom.yearDropdown.value);
@@ -1285,7 +1490,24 @@ function initializeStreamDropdownGlobal() {
     const dom = window.domElements;
     const state = window.appState;
     
-    dom.streamDropdown.innerHTML = '<option value="">Select Stream</option>';
+    if (!dom || !dom.streamDropdown) {
+        console.error('Stream dropdown element not found');
+        return;
+    }
+    
+    if (typeof CONFIG === 'undefined' || !CONFIG.streams) {
+        console.error('CONFIG streams not available');
+        return;
+    }
+    
+    dom.streamDropdown.innerHTML = '';
+    dom.streamDropdown.onchange = null;
+    
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select Stream';
+    dom.streamDropdown.appendChild(defaultOption);
+    
     CONFIG.streams.forEach(stream => {
         const option = document.createElement('option');
         option.value = stream.shortCode;
@@ -1313,7 +1535,27 @@ function initializeSemesterDropdownGlobal() {
     const dom = window.domElements;
     const state = window.appState;
     
-    dom.semesterDropdown.innerHTML = '<option value="">Select Semester</option>';
+    if (!dom || !dom.semesterDropdown) {
+        console.error('Semester dropdown element not found');
+        return;
+    }
+    
+    if (typeof CONFIG === 'undefined' || !CONFIG.semesters) {
+        console.error('CONFIG semesters not available');
+        return;
+    }
+    
+    // Clear any existing options and event listeners
+    dom.semesterDropdown.innerHTML = '';
+    dom.semesterDropdown.onchange = null;
+    
+    // Add default option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select Semester';
+    dom.semesterDropdown.appendChild(defaultOption);
+    
+    // Add semester options
     CONFIG.semesters.forEach(semester => {
         const option = document.createElement('option');
         option.value = semester;
@@ -1333,7 +1575,7 @@ function initializeSemesterDropdownGlobal() {
                 dom.selectionContainer.classList.add('hidden');
                 dom.viewerContainer.classList.remove('hidden');
                 
-                checkImagePartsForRestore();
+                checkImageParts();
                 
                 setTimeout(() => {
                     ensureDownloadAndClickEventListeners();
@@ -1444,14 +1686,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
+        console.log('Restoring session for:', state.lastVisited);
         showRefreshingPopup();
         return;
     }
     
-    showRefreshingPopup();
+    console.log('First time or no previous session, showing initializing popup');
     setTimeout(() => {
-        initializeYearDropdown();
-    }, 2000);
+        showInitializingPopup();
+    }, 100); // Small delay to ensure DOM is fully ready
 
     function setupCoreEventListeners() {
         document.querySelectorAll('.back-button').forEach(btn => {
