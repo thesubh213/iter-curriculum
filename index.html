@@ -2,234 +2,211 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ITER Curriculum - View semester-wise curriculum for different engineering streams">
     <title>ITER Curriculum</title>
-    <meta name="description" content="Interactive curriculum viewer for ITER students.">
-    <meta name="theme-color" content="#8b7d6b">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="HandheldFriendly" content="true">
-    <meta name="apple-touch-fullscreen" content="yes">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./sundarta.css?v=2.0.0">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css" media="all" />
-    <link rel="preload" href="style.css" as="style">
-    <link rel="preload" href="script.js" as="script">
-    <link rel="preload" href="config.js" as="script">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236B8E78'%3E%3Cpath d='M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z'/%3E%3C/svg%3E">
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideInLeft {
+            from { transform: translateX(-50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes loadingBarProgress {
+            from { width: 0%; }
+            to { width: 100%; }
+        }
+        
+        body {
+            opacity: 1 !important;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <h1 class="main-title" id="main-title">ITER Curriculum</h1>
-            <div id="viewer-header-info" style="display:none;">
-                <div class="viewer-title" id="viewer-title">Curriculum Image</div>
-                <div class="viewer-subtitle" id="viewer-subtitle"></div>
-            </div>
-            <div class="header-options" id="header-options" style="display:none;">
-                <button class="btn btn-secondary" id="reset-selection-btn">Reset Selection</button>
-            </div>
-        </header>
+    <header id="main-header">
+        <h1>ITER Curriculum</h1>
+        <div id="header-controls">
+            <div id="connection-status" class="hidden">Offline</div>
+        </div>
+    </header>
 
-        <div class="viewer-controls" id="viewer-controls" style="display:none;">
-            <div class="control-group navigation-group">
-                <button class="control-btn" id="prev-image" title="Previous Image">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-                    </svg>
-                </button>
-                <span class="image-counter" id="image-counter">1 / 1</span>
-                <button class="control-btn" id="next-image" title="Next Image">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
-                    </svg>
-                </button>
+    <main>
+        <div id="selection-container">
+            <div class="selection-step" id="year-selection">
+                <h2>Select Year</h2>
+                <select id="year-dropdown">
+                    <option value="">Select Year</option>
+                </select>
             </div>
             
-            <div class="control-group tools-group">
-                <button class="control-btn" id="zoom-out" title="Zoom Out">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 13H5v-2h14v2z"/>
+            <div class="selection-step hidden" id="stream-selection">
+                <button class="back-button" data-back-to="year">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
                     </svg>
+                    Back
                 </button>
-                <button class="control-btn" id="reset-zoom" title="Reset View">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                <h2>Select Stream</h2>
+                <select id="stream-dropdown">
+                    <option value="">Select Stream</option>
+                </select>
+            </div>
+            
+            <div class="selection-step hidden" id="semester-selection">
+                <button class="back-button" data-back-to="stream">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
                     </svg>
+                    Back
                 </button>
-                <button class="control-btn" id="zoom-in" title="Zoom In">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                    </svg>
-                </button>
-                <button class="control-btn" id="back-to-curriculum" title="Back to Curriculum" style="display: none;">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-                    </svg>
-                </button>
-                <button class="control-btn" id="others-btn" title="Additional Files">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                    </svg>
-                </button>
-                <button class="control-btn" id="fullscreen-btn" title="Open in New Tab">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-                    </svg>
-                </button>
+                <h2>Select Semester</h2>
+                <select id="semester-dropdown">
+                    <option value="">Select Semester</option>
+                </select>
             </div>
         </div>
-
-        <div id="one-time-process-indicator" class="one-time-process-indicator">
-            <span class="indicator-icon">⚙️</span>
-            <span class="indicator-text">One Time Process</span>
-        </div>
-
-        <main class="main-content">
-            <div class="section active" id="batch-section">
-                <div class="dropdown-container">
-                    <div class="container-header">
-                        <div class="icon">📅</div>
-                        <h2>Select Admission Batch</h2>
-                    </div>
-                    <div class="dropdown-wrapper">
-                        <select id="batch-select" class="dropdown">
-                            <option value="">Choose Batch</option>
-                            <option value="2024">2024</option>
-                            <option value="2023">2023</option>
-                            <option value="2022">2022</option>
-                            <option value="2021">2021</option>
-                            <option value="2020">2020</option>
-                        </select>
-                        <div class="dropdown-icon">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M7 10l5 5 5-5z"/>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="section" id="stream-section">
-                <div class="dropdown-container">
-                    <div class="container-header">
-                        <div class="icon">🎓</div>
-                        <h2>Select Stream</h2>
-                    </div>
-                    <div class="dropdown-wrapper">
-                        <select id="stream-select" class="dropdown">
-                            <option value="">Choose Stream</option>
-                            <option value="CE">Civil Engineering (CE)</option>
-                            <option value="ME">Mechanical Engineering (ME)</option>
-                            <option value="EE">Electrical Engineering (EE)</option>
-                            <option value="EEE">Electrical & Electronics Engineering (EEE)</option>
-                            <option value="ECE">Electronics & Communication Engineering (ECE)</option>
-                            <option value="CSE">Computer Science & Engineering (CSE)</option>
-                            <option value="CS-IT">Computer Science and Information Technology (CS-IT)</option>
-                            <option value="CSE-AIML">CSE - Artificial Intelligence and Machine Learning (CSE-AIML)</option>
-                            <option value="CSE-CS">CSE - Cyber Security (CSE-CS)</option>
-                            <option value="CSE-DS">CSE - Data Science (CSE-DS)</option>
-                            <option value="CSE-IOT">CSE - Internet of Things (CSE-IOT)</option>
-                        </select>
-                        <div class="dropdown-icon">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M7 10l5 5 5-5z"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="setup-actions">
-                        <button class="btn btn-secondary" id="back-to-batch">
-                            <svg viewBox="0 0 24 24" fill="currentColor" class="btn-icon">
-                                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-                            </svg>
-                            Back to Batch
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="section" id="semester-section">
-                <div class="dropdown-container">
-                    <div class="container-header">
-                        <div class="icon">📚</div>
-                        <h2>Select Semester</h2>
-                    </div>
-                    <div class="dropdown-wrapper">
-                        <select id="semester-select" class="dropdown">
-                            <option value="">Choose Semester</option>
-                            <option value="1">Semester 1</option>
-                            <option value="2">Semester 2</option>
-                            <option value="3">Semester 3</option>
-                            <option value="4">Semester 4</option>
-                            <option value="5">Semester 5</option>
-                            <option value="6">Semester 6</option>
-                            <option value="7">Semester 7</option>
-                            <option value="8">Semester 8</option>
-                        </select>
-                        <div class="dropdown-icon">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M7 10l5 5 5-5z"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="setup-actions">
-                        <button class="btn btn-secondary" id="back-to-stream">
-                            <svg viewBox="0 0 24 24" fill="currentColor" class="btn-icon">
-                                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-                            </svg>
-                            Back to Stream
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="section" id="viewer-section">
-                <div class="image-viewer-container">
-                    <div class="image-viewer" id="image-viewer">
-                        <img id="curriculum-image" src="" alt="Curriculum" draggable="false" />
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <div class="image-loading" id="image-loading">
-            <div class="loading-container">
-                <div class="spinner"></div>
-                <div class="loading-text" id="loading-text">Loading...</div>
-                <div class="loading-percentage" id="loading-percentage">0%</div>
-                <div class="progress-container">
-                    <div class="progress-bar" id="loading-progress"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal" id="others-modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Additional Files</h3>
-                    <button class="modal-close" id="others-modal-close">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        
+        <div id="viewer-container" class="hidden">
+            <div id="image-navigation-header">
+                <div id="image-navigation">
+                    <button id="prev-image" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M15 18l-6-6 6-6"/>
+                        </svg>
+                    </button>
+                    <span id="image-counter">1/1</span>
+                    <button id="next-image" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 18l6-6-6-6"/>
                         </svg>
                     </button>
                 </div>
-                <div class="modal-body" id="others-list">
+            </div>
+            
+            <div id="image-container">
+                <img id="curriculum-image" alt="Curriculum Image" title="Click to open in new window">
+                <div id="image-tooltip" class="hidden">Click to open in new window</div>
+                <div id="loading-container">
+                    <div id="loading-bar-outer">
+                        <div id="loading-bar-inner"></div>
+                    </div>
+                    <div id="loading-percentage">0%</div>
+                </div>
+            </div>
+            
+            <div id="image-info" class="image-info"></div>
+            
+            <div id="toolbar">
+                <div class="toolbar-left">
+                    <button id="download-image">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download
+                    </button>
+                </div>
+                <div class="toolbar-right">
+                    <button id="additional-files">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                        Additional Files
+                    </button>
+                    <button id="back-to-main" class="hidden">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                        Back to Semester
+                    </button>
+                    <div class="dropdown">
+                        <button id="change-selection">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M6 9l6 6 6-6"></path>
+                            </svg>
+                            Change Selection
+                        </button>
+                        <div id="change-selection-dropdown" class="dropdown-content hidden">
+                            <button data-change="year">Change Year</button>
+                            <button data-change="stream">Change Stream</button>
+                            <button data-change="semester">Change Semester</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
+    </main>
 
-        <div class="popup" id="popup">
-            <div class="popup-content">
-                <div class="popup-icon">❤️</div>
-                <h3>Welcome to ITER Curriculum</h3>
-                <p>Select your batch, stream, and semester to view the curriculum. Use the toolbar to navigate and zoom images.</p>
-                <button class="popup-close" id="popup-close">Got it!</button>
+    <div id="modal-container" class="hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title"></h3>
+                <button id="modal-close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
+            <div class="modal-content"></div>
         </div>
     </div>
 
-    <script src="config.js" defer></script>
-    <script src="script.js" type="module" defer></script>
+    <script src="config.js"></script>
+    <script src="karm.js"></script>
+    <script>
+        window.addEventListener('load', () => {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker registered with scope:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            }
+        });
+    </script>
+    
+    <footer>
+        <p>&copy; 2025 ITER Curriculum Viewer | <a href="#" id="about-link">About</a></p>
+    </footer>
 </body>
 </html>

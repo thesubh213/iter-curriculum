@@ -1,20 +1,21 @@
 {
   "name": "ITER Curriculum",
   "short_name": "ITER Curriculum",
-  "description": "Interactive curriculum viewer for ITER students",
+  "description": "View semester-wise curriculum for different engineering streams at ITER",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#faf9f7",
-  "theme_color": "#8b7d6b",
-  "orientation": "portrait-primary",
-  "categories": ["education", "productivity"],
-  "lang": "en",
-  "dir": "ltr",
+  "background_color": "#ffffff",
+  "theme_color": "#2c3e50",
   "icons": [
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiM4YjdkNmIiLz4KPHN2ZyB4PSI0OCIgeT0iNDgiIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xMiAyTDIgN2wxMCA1IDEwLTUtMTAtNXptMCAxNGwtMTAtNS0xMCA1IDEwIDUgMTAtNXoiLz4KPC9zdmc+Cjwvc3ZnPgo=",
+      "src": "images/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png"
+    },
+    {
+      "src": "images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ]
-} 
+}
