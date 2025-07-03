@@ -1,19 +1,21 @@
 # ITER Curriculum Viewer
 
-A web application to view semester-wise curriculum images for different engineering streams at ITER.
+A modern, responsive web application to view semester-wise curriculum images for different engineering streams at ITER. Built with vanilla JavaScript and featuring a beautiful glass-morphism design with comprehensive mobile optimization.
 
 ## Features
 
-- Year selection (2020-2024)
-- Multiple engineering stream support with short codes
-- Semester navigation (1-8)
-- Image viewer with zoom functionality
-- Additional resources viewer
-- Fast image loading with caching
-- Progressive loading bar
-- Back navigation for easy correction of selections
-- Change selection dropdown for quick navigation
-- Responsive design
+- **Multi-Year Support**: Year selection (2020-2024) with expandable configuration
+- **Complete Stream Coverage**: Multiple engineering streams with intuitive short codes
+- **Comprehensive Navigation**: Semester navigation (1-8) with part-based document viewing
+- **Advanced Image Viewer**: High-quality image viewer with zoom and click-to-open functionality
+- **Additional Resources**: Dedicated viewer for supplementary materials and resources
+- **Smart Caching**: Intelligent image caching with progressive loading and cleanup
+- **Interactive UI**: Real-time progress indicators and smooth loading animations
+- **Intuitive Navigation**: Back navigation and change selection dropdown for seamless experience
+- **Fully Responsive**: Mobile-first design optimized for all device sizes
+- **Session Management**: Automatic session restoration with welcome popup for new users
+- **PWA Ready**: Progressive Web App with offline support and caching strategies
+- **Touch Optimized**: Enhanced touch targets and mobile interactions
 
 ## Directory Structure
 
@@ -56,6 +58,28 @@ A web application to view semester-wise curriculum images for different engineer
 
 ## Caching Strategy
 
-- Only semester images are cached for quick access
-- When a new semester image is loaded, the previous cached image is removed
-- The user's last selection is saved and automatically loaded on revisit
+- **Smart Image Caching**: Only semester images are cached for optimal performance
+- **Memory Management**: Previous cached images are automatically removed when new ones are loaded
+- **Session Persistence**: User's last selection is saved and automatically restored on revisit
+- **Progressive Loading**: Images load with real-time progress indicators
+- **Background Cleanup**: Automatic cache maintenance during app idle time
+- **Offline Support**: Previously viewed content remains accessible offline
+
+## Technical Specifications
+
+- **Frontend**: HTML5, CSS3, Vanilla JavaScript (ES6+)
+- **Design System**: Modern glass-morphism with sage green color palette
+- **Responsive Framework**: Mobile-first approach with comprehensive breakpoints
+- **Performance**: Service Worker caching, lazy loading, and image optimization
+- **Accessibility**: WCAG compliant with keyboard navigation and screen reader support
+- **Browser Support**: Modern browsers with ES6+ support
+
+## Recent Updates (v2.0.0 - July 2025)
+
+- Complete mobile optimization with touch-friendly interfaces
+- Enhanced glass-morphism design with improved visual hierarchy
+- Smart session management with automatic restoration
+- Comprehensive dropdown styling for consistent user experience
+- Improved error handling with context-aware messaging
+- Advanced event listener management for reliable functionality
+- Progressive enhancement for various screen sizes

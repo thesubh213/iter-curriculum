@@ -1,13 +1,3 @@
-function checkCSSLoaded() {
-    const headerStyle = window.getComputedStyle(document.querySelector('header'));
-    const bgColor = headerStyle.backgroundColor;
-    
-    if (!bgColor || bgColor === 'rgba(0, 0, 0, 0)' || bgColor === 'transparent') {
-        console.error('CSS may not be loading properly. Background color is:', bgColor);
-        alert('Warning: Styles may not be loading correctly. Please check your network connection or try refreshing the page.');
-    }
-}
-
 const APP_VERSION = '2.0.0';
 const VERSION_KEY = 'iter-curriculum-version';
 const FIRST_VISIT_KEY = 'iter-curriculum-first-visit';
@@ -192,13 +182,21 @@ function showErrorGlobal(message) {
 
 
 function showNoImagesPopup() {
-    const stream = CONFIG.streams.find(s => s.shortCode === window.appState.currentStream);
-    const streamName = stream ? stream.displayName : window.appState.currentStream;
+    const currentState = window.appState;
+    const stream = CONFIG.streams.find(s => s.shortCode === currentState.currentStream);
+    const streamName = stream ? stream.displayName : currentState.currentStream;
+    
+    console.log('Showing no images popup for:', {
+        year: currentState.currentYear,
+        stream: currentState.currentStream,
+        semester: currentState.currentSemester,
+        streamName: streamName
+    });
     
     showPopup({
         icon: 'image-off',
         title: 'No Images Available',
-        message: `Sorry, no curriculum images are available for ${streamName} - Semester ${window.appState.currentSemester} (${window.appState.currentYear}).<br><br>Please try selecting a different semester or check back later.`,
+        message: `Sorry, no curriculum images are available for:<br><br><strong>${streamName}</strong><br>Semester ${currentState.currentSemester} (${currentState.currentYear})<br><br>Please try selecting a different combination or check back later.`,
         buttons: [
             {
                 text: 'Got it',
@@ -208,7 +206,7 @@ function showNoImagesPopup() {
                 }
             }
         ],
-        autoClose: 5000
+        autoClose: 6000
     });
 }
 
@@ -891,7 +889,14 @@ function checkImagePartsForRestore() {
             updateImageNavigationButtonsForRestore();
             updateHeaderForRestore();
             saveLastVisitedStateForRestore();
+            
+            hideLoadingGlobal();
+            
+            setTimeout(() => {
+                ensureDownloadAndClickEventListeners();
+            }, 500);
         } else {
+            hideLoadingGlobal();
             showNoImagesPopup();
         }
     });
@@ -1223,6 +1228,23 @@ function saveLastVisitedStateForRestore() {
     state.lastVisited = stateToSave;
 }
 
+function ensureDownloadAndClickEventListeners() {
+    const downloadBtn = document.getElementById('download-image');
+    const curriculumImage = document.getElementById('curriculum-image');
+    
+    if (downloadBtn) {
+        downloadBtn.removeEventListener('click', downloadCurrentImage);
+        downloadBtn.addEventListener('click', downloadCurrentImage);
+    }
+    
+    if (curriculumImage) {
+        curriculumImage.removeEventListener('click', openImageInNewWindow);
+        curriculumImage.addEventListener('click', openImageInNewWindow);
+    }
+    
+    console.log('Event listeners ensured for download and image click');
+}
+
 function initializeYearDropdownGlobal() {
     const dom = window.domElements;
     const state = window.appState;
@@ -1305,10 +1327,18 @@ function initializeSemesterDropdownGlobal() {
             state.currentPart = 1;
             state.viewingAdditional = false;
             
-            dom.selectionContainer.classList.add('hidden');
-            dom.viewerContainer.classList.remove('hidden');
+            showLoadingGlobal("Preparing curriculum viewer...");
             
-            checkImagePartsForRestore();
+            setTimeout(() => {
+                dom.selectionContainer.classList.add('hidden');
+                dom.viewerContainer.classList.remove('hidden');
+                
+                checkImagePartsForRestore();
+                
+                setTimeout(() => {
+                    ensureDownloadAndClickEventListeners();
+                }, 1000);
+            }, 200);
         }
     });
 }
@@ -1318,8 +1348,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('CONFIG object:', CONFIG);
     
     checkVersionAndClearCache();
-    
-    setTimeout(checkCSSLoaded, 500);
     
     const state = {
         currentYear: null,
@@ -1443,17 +1471,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (changeSelectionBtn) {
-            changeSelectionBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                changeSelectionDropdown.classList.toggle('hidden');
-            });
-            
-            changeSelectionBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                changeSelectionDropdown.classList.toggle('hidden');
-            });
+            changeSelectionBtn.addEventListener('click', handleChangeSelectionClick);
+            changeSelectionBtn.addEventListener('touchend', handleChangeSelectionClick);
         }
 
         document.addEventListener('click', (e) => {
@@ -1463,21 +1482,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         document.querySelectorAll('#change-selection-dropdown button').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const changeType = btn.dataset.change;
-                openChangeSelectionModal(changeType);
-                changeSelectionDropdown.classList.add('hidden');
-            });
-            
-            btn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const changeType = btn.dataset.change;
-                openChangeSelectionModal(changeType);
-                changeSelectionDropdown.classList.add('hidden');
-            });
+            btn.addEventListener('click', handleChangeDropdownClick);
+            btn.addEventListener('touchend', handleChangeDropdownClick);
         });
 
         if (additionalFilesBtn) {
@@ -1729,7 +1735,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.currentSemester = semesterDropdown.value;
                 state.currentPart = 1;
                 state.viewingAdditional = false;
-                loadCurriculumImage();
+                
+                showLoadingGlobal("Preparing curriculum viewer...");
+                
+                setTimeout(() => {
+                    loadCurriculumImage();
+                    
+                    setTimeout(() => {
+                        ensureDownloadAndClickEventListeners();
+                    }, 1000);
+                }, 200);
             }
         });
     }
@@ -1740,6 +1755,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function checkImageParts() {
+        console.log('Starting image check with current state:', {
+            year: state.currentYear,
+            stream: state.currentStream,
+            semester: state.currentSemester
+        });
+        
         state.totalParts = 0;
         
         const checkPartPromises = [];
@@ -1749,6 +1770,8 @@ document.addEventListener('DOMContentLoaded', () => {
             state.currentStream, 
             state.currentSemester
         );
+        
+        console.log('Checking main image path:', mainImagePath);
         
         const mainImagePromise = imageExists(mainImagePath)
             .then(exists => {
@@ -1781,6 +1804,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         Promise.all(checkPartPromises).then(() => {
+            console.log('Image check completed for:', {
+                year: state.currentYear,
+                stream: state.currentStream,
+                semester: state.currentSemester,
+                totalParts: state.totalParts
+            });
+            
             if (state.totalParts > 0) {
                 animateHide(selectionContainer, () => {
                     selectionContainer.classList.add('hidden');
@@ -1791,7 +1821,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateImageNavigationButtons();
                 updateHeader();
                 saveLastVisitedState();
+                
+                hideLoadingGlobal();
+                
+                setupViewerEventListeners();
             } else {
+                hideLoadingGlobal();
                 showNoImagesPopup();
             }
         });
@@ -1807,6 +1842,47 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadCurriculumImage = loadCurriculumImage;
     window.animateHide = animateHide;
     window.animateShow = animateShow;
+
+    function setupViewerEventListeners() {
+        const downloadBtn = document.getElementById('download-image');
+        if (downloadBtn) {
+            downloadBtn.removeEventListener('click', downloadCurrentImage);
+            downloadBtn.addEventListener('click', downloadCurrentImage);
+        }
+        
+        if (curriculumImage) {
+            curriculumImage.removeEventListener('click', openImageInNewWindow);
+            curriculumImage.addEventListener('click', openImageInNewWindow);
+        }
+        
+        if (changeSelectionBtn) {
+            changeSelectionBtn.removeEventListener('click', handleChangeSelectionClick);
+            changeSelectionBtn.addEventListener('click', handleChangeSelectionClick);
+            changeSelectionBtn.removeEventListener('touchend', handleChangeSelectionClick);
+            changeSelectionBtn.addEventListener('touchend', handleChangeSelectionClick);
+        }
+        
+        document.querySelectorAll('#change-selection-dropdown button').forEach(btn => {
+            btn.removeEventListener('click', handleChangeDropdownClick);
+            btn.addEventListener('click', handleChangeDropdownClick);
+            btn.removeEventListener('touchend', handleChangeDropdownClick);
+            btn.addEventListener('touchend', handleChangeDropdownClick);
+        });
+    }
+    
+    function handleChangeSelectionClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        changeSelectionDropdown.classList.toggle('hidden');
+    }
+    
+    function handleChangeDropdownClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const changeType = e.target.dataset.change;
+        openChangeSelectionModal(changeType);
+        changeSelectionDropdown.classList.add('hidden');
+    }
 
     function loadImageWithPart() {
         if (state.currentPart > state.totalParts) {
@@ -2234,8 +2310,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     backToMainBtn.classList.add('hidden');
                     closeModal();
                     
-                    // Check if images exist before saving state
-                    checkImagePartsBeforeStateChange(previousState);
+                    showLoading("Loading new curriculum...");
+                    
+                    setTimeout(() => {
+                        console.log('Checking images with new state:', {
+                            year: state.currentYear,
+                            stream: state.currentStream,
+                            semester: state.currentSemester
+                        });
+                        checkImageParts();
+                    }, 150);
                 }
             });
         }
