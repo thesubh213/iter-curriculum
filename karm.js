@@ -10,6 +10,8 @@ function checkCSSLoaded() {
 
 const APP_VERSION = '2.0.0';
 const VERSION_KEY = 'iter-curriculum-version';
+const FIRST_VISIT_KEY = 'iter-curriculum-first-visit';
+const IMAGE_PATHS_CACHE_KEY = 'iter-curriculum-image-paths';
 
 function checkVersionAndClearCache() {
     const savedVersion = localStorage.getItem(VERSION_KEY);
@@ -27,7 +29,7 @@ function checkVersionAndClearCache() {
                 return Promise.all(deletePromises);
             }).then(() => {
                 console.log('All caches cleared for version update');
-                const keysToKeep = [VERSION_KEY];
+                const keysToKeep = [VERSION_KEY, FIRST_VISIT_KEY];
                 const keysToRemove = [];
                 
                 for (let i = 0; i < localStorage.length; i++) {
@@ -203,7 +205,6 @@ function showNoImagesPopup() {
                 type: 'primary',
                 action: () => {
                     closePopup();
-                    resetToSelectionInterface();
                 }
             }
         ],
@@ -388,12 +389,6 @@ function showPopup(options) {
             
             if (remaining <= 0) {
                 closePopup();
-                if (options.title === 'No Images Available') {
-                    resetToSelectionInterface();
-                } else if (window.semesterDropdown) {
-                    window.semesterDropdown.value = '';
-                    state.currentSemester = null;
-                }
             } else {
                 requestAnimationFrame(updateTimer);
             }
@@ -405,24 +400,12 @@ function showPopup(options) {
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
             closePopup();
-            if (options.title === 'No Images Available') {
-                resetToSelectionInterface();
-            } else if (options.title === 'No Images Available' && window.semesterDropdown) {
-                window.semesterDropdown.value = '';
-                state.currentSemester = null;
-            }
         }
     });
     
     const handleEscape = (e) => {
         if (e.key === 'Escape') {
             closePopup();
-            if (options.title === 'No Images Available') {
-                resetToSelectionInterface();
-            } else if (options.title === 'No Images Available' && window.semesterDropdown) {
-                window.semesterDropdown.value = '';
-                state.currentSemester = null;
-            }
             document.removeEventListener('keydown', handleEscape);
         }
     };
@@ -477,82 +460,237 @@ function getPopupIcon(iconType) {
                 <line x1="15" y1="9" x2="9" y2="15"></line>
                 <line x1="9" y1="9" x2="15" y2="15"></line>
             </svg>
+        `,
+        'heart': `
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill="#ff6b6b" stroke="#ff6b6b"></path>
+            </svg>
         `
     };
     
     return icons[iconType] || icons['info'];
 }
 
-function showSessionRestorePopup(lastVisited) {
-    const stream = CONFIG.streams.find(s => s.shortCode === lastVisited.stream);
-    const streamName = stream ? stream.displayName : lastVisited.stream;
+function openChangeSelectionModal(changeType) {
+    const state = window.appState;
+    const dom = window.domElements;
     
+    let title, content;
+    
+    switch(changeType) {
+        case 'year':
+            title = 'Change Year';
+            content = `
+                <div class="modal-selection">
+                    <p>Select a new year:</p>
+                    <select id="modal-year-dropdown" style="margin: 1rem auto; display: block;">
+                        <option value="">Select Year</option>
+                        ${CONFIG.years.map(year => `
+                            <option value="${year}" ${year === state.currentYear ? 'selected' : ''}>
+                                ${year}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <div class="modal-actions" style="margin-top: 1.5rem; text-align: center;">
+                        <button class="popup-button secondary" onclick="closeModal()">Cancel</button>
+                        <button class="popup-button primary" onclick="applyYearChange()">Apply Changes</button>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'stream':
+            title = 'Change Stream';
+            content = `
+                <div class="modal-selection">
+                    <p>Select a new stream:</p>
+                    <select id="modal-stream-dropdown" style="margin: 1rem auto; display: block;">
+                        <option value="">Select Stream</option>
+                        ${CONFIG.streams.map(stream => `
+                            <option value="${stream.shortCode}" ${stream.shortCode === state.currentStream ? 'selected' : ''}>
+                                ${stream.displayName}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <div class="modal-actions" style="margin-top: 1.5rem; text-align: center;">
+                        <button class="popup-button secondary" onclick="closeModal()">Cancel</button>
+                        <button class="popup-button primary" onclick="applyStreamChange()">Apply Changes</button>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'semester':
+            title = 'Change Semester';
+            content = `
+                <div class="modal-selection">
+                    <p>Select a new semester:</p>
+                    <select id="modal-semester-dropdown" style="margin: 1rem auto; display: block;">
+                        <option value="">Select Semester</option>
+                        ${CONFIG.semesters.map(semester => `
+                            <option value="${semester}" ${semester == state.currentSemester ? 'selected' : ''}>
+                                Semester ${semester}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <div class="modal-actions" style="margin-top: 1.5rem; text-align: center;">
+                        <button class="popup-button secondary" onclick="closeModal()">Cancel</button>
+                        <button class="popup-button primary" onclick="applySemesterChange()">Apply Changes</button>
+                    </div>
+                </div>
+            `;
+            break;
+    }
+    
+    dom.modalTitle.textContent = title;
+    dom.modalContent.innerHTML = content;
+    dom.modalContainer.classList.remove('hidden');
+}
+
+function applyYearChange() {
+    const state = window.appState;
+    const newYear = document.getElementById('modal-year-dropdown').value;
+    
+    if (newYear && newYear !== state.currentYear) {
+        state.currentYear = newYear;
+        state.currentPart = 1;
+        state.viewingAdditional = false;
+        
+        closeModal();
+        checkImagePartsForRestore();
+    } else {
+        closeModal();
+    }
+}
+
+function applyStreamChange() {
+    const state = window.appState;
+    const newStream = document.getElementById('modal-stream-dropdown').value;
+    
+    if (newStream && newStream !== state.currentStream) {
+        state.currentStream = newStream;
+        state.currentPart = 1;
+        state.viewingAdditional = false;
+        
+        closeModal();
+        checkImagePartsForRestore();
+    } else {
+        closeModal();
+    }
+}
+
+function applySemesterChange() {
+    const state = window.appState;
+    const newSemester = document.getElementById('modal-semester-dropdown').value;
+    
+    if (newSemester && newSemester !== state.currentSemester) {
+        state.currentSemester = newSemester;
+        state.currentPart = 1;
+        state.viewingAdditional = false;
+        
+        closeModal();
+        checkImagePartsForRestore();
+    } else {
+        closeModal();
+    }
+}
+
+function closeModal() {
+    const dom = window.domElements;
+    if (dom && dom.modalContainer) {
+        dom.modalContainer.classList.add('hidden');
+    }
+}
+
+function showWelcomePopup() {
     showPopup({
-        icon: 'info',
-        title: 'Restore Previous Session',
-        message: `Would you like to continue viewing:<br><br><strong>${streamName}</strong><br>Year: ${lastVisited.year} • Semester: ${lastVisited.semester}`,
+        icon: 'heart',
+        title: 'Welcome to ITER Curriculum Viewer! 💚',
+        message: `We're excited to have you here!<br><br>This tool helps you access and view your curriculum materials seamlessly. Let's get you started by preparing everything for the best experience.`,
         buttons: [
             {
-                text: 'Yes, Restore',
+                text: 'Got it! 🚀',
                 type: 'primary',
                 action: () => {
                     closePopup();
-                    showSessionLoadingSpinner(lastVisited);
-                }
-            },
-            {
-                text: 'Start Fresh',
-                type: 'secondary',
-                action: () => {
-                    closePopup();
-                    localStorage.removeItem('iterCurriculumLastVisited');
-                    window.appState.lastVisited = null;
-                    
-                    const selectionContainer = document.getElementById('selection-container');
-                    const yearSelection = document.getElementById('year-selection');
-                    const streamSelection = document.getElementById('stream-selection');
-                    const semesterSelection = document.getElementById('semester-selection');
-                    const viewerContainer = document.getElementById('viewer-container');
-                    
-                    if (viewerContainer) viewerContainer.classList.add('hidden');
-                    if (selectionContainer) selectionContainer.classList.remove('hidden');
-                    
-                    if (yearSelection) yearSelection.classList.remove('hidden');
-                    if (streamSelection) streamSelection.classList.add('hidden');
-                    if (semesterSelection) semesterSelection.classList.add('hidden');
-                    
-                    initializeYearDropdownGlobal();
+                    showInitializingPopup();
                 }
             }
         ],
-        autoClose: false 
+        autoClose: false
     });
 }
 
-function showSessionLoadingSpinner(lastVisited) {
+function showInitializingPopup() {
     const overlay = document.createElement('div');
-    overlay.className = 'popup-overlay session-restore-overlay';
+    overlay.className = 'popup-overlay initializing-overlay';
     overlay.innerHTML = `
-        <div class="session-restore-popup">
-            <div class="session-spinner"></div>
-            <h3>Restoring Session</h3>
-            <p>Loading previous session...</p>
-            <div class="session-timer">
-                <div class="timer-bar"></div>
+        <div class="initializing-popup">
+            <div class="initializing-spinner"></div>
+            <h3>Initializing</h3>
+            <p>Loading image paths...</p>
+            <div class="initializing-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="init-progress-fill"></div>
+                </div>
+                <div class="progress-text" id="init-progress-text">0%</div>
             </div>
         </div>
     `;
     
     document.body.appendChild(overlay);
     
-    setTimeout(() => {
-        closeSessionRestorePopup();
-        restoreSession(lastVisited);
-    }, 1000);
+    loadAllImagePaths(true).then(() => {
+        localStorage.setItem(FIRST_VISIT_KEY, 'false');
+        closeInitializingPopup();
+    }).catch(() => {
+        localStorage.setItem(FIRST_VISIT_KEY, 'false');
+        closeInitializingPopup();
+    });
 }
 
-function closeSessionRestorePopup() {
-    const overlay = document.querySelector('.session-restore-overlay');
+function showRefreshingPopup() {
+    const overlay = document.createElement('div');
+    overlay.className = 'popup-overlay initializing-overlay';
+    overlay.innerHTML = `
+        <div class="initializing-popup">
+            <div class="initializing-spinner"></div>
+            <h3>Refreshing</h3>
+            <p>Checking for new images...</p>
+            <div class="initializing-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="refresh-progress-fill"></div>
+                </div>
+                <div class="progress-text" id="refresh-progress-text">0%</div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    loadAllImagePaths(false).then(() => {
+        closeInitializingPopup();
+        
+        const state = window.appState;
+        if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
+            setTimeout(() => {
+                restoreSession(state.lastVisited);
+            }, 500);
+        }
+    }).catch(() => {
+        closeInitializingPopup();
+        
+        const state = window.appState;
+        if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
+            setTimeout(() => {
+                restoreSession(state.lastVisited);
+            }, 500);
+        }
+    });
+}
+
+function closeInitializingPopup() {
+    const overlay = document.querySelector('.initializing-overlay');
     if (overlay) {
         overlay.style.animation = 'fadeOut 0.3s ease forwards';
         setTimeout(() => {
@@ -561,6 +699,122 @@ function closeSessionRestorePopup() {
             }
         }, 300);
     }
+}
+
+function loadAllImagePaths(isFirstTime = false) {
+    return new Promise((resolve, reject) => {
+        const progressFill = document.getElementById(isFirstTime ? 'init-progress-fill' : 'refresh-progress-fill');
+        const progressText = document.getElementById(isFirstTime ? 'init-progress-text' : 'refresh-progress-text');
+        
+        const allPaths = [];
+        const checkPromises = [];
+        let completed = 0;
+        
+        const totalPaths = CONFIG.years.length * CONFIG.streams.length * CONFIG.semesters.length * 12; // 10 parts + 1 main + 1 additional check
+        
+        CONFIG.years.forEach(year => {
+            CONFIG.streams.forEach(stream => {
+                CONFIG.semesters.forEach(semester => {
+                    const mainPath = CONFIG.getImagePath(year, stream.shortCode, semester);
+                    checkPromises.push(
+                        checkImagePathExists(mainPath).then(exists => {
+                            if (exists) allPaths.push(mainPath);
+                            completed++;
+                            updateProgress(completed, totalPaths, progressFill, progressText);
+                        })
+                    );
+                    
+                    for (let part = 1; part <= 10; part++) {
+                        const partPath = CONFIG.getImagePath(year, stream.shortCode, semester, part);
+                        checkPromises.push(
+                            checkImagePathExists(partPath).then(exists => {
+                                if (exists) allPaths.push(partPath);
+                                completed++;
+                                updateProgress(completed, totalPaths, progressFill, progressText);
+                            })
+                        );
+                    }
+                    
+                    const additionalPath = CONFIG.getAdditionalResourcesPath(year, stream.shortCode);
+                    checkPromises.push(
+                        checkAdditionalResourcesExist(additionalPath).then(files => {
+                            if (files.length > 0) {
+                                allPaths.push(...files);
+                            }
+                            completed++;
+                            updateProgress(completed, totalPaths, progressFill, progressText);
+                        })
+                    );
+                });
+            });
+        });
+        
+        Promise.all(checkPromises).then(() => {
+            const pathCache = {
+                timestamp: Date.now(),
+                version: APP_VERSION,
+                paths: allPaths
+            };
+            
+            localStorage.setItem(IMAGE_PATHS_CACHE_KEY, JSON.stringify(pathCache));
+            
+            setTimeout(() => {
+                resolve(allPaths);
+            }, 1000);
+        }).catch(error => {
+            console.error('Error loading image paths:', error);
+            reject(error);
+        });
+    });
+}
+
+function updateProgress(completed, total, progressFill, progressText) {
+    const percentage = Math.round((completed / total) * 100);
+    if (progressFill) {
+        progressFill.style.width = `${percentage}%`;
+    }
+    if (progressText) {
+        progressText.textContent = `${percentage}%`;
+    }
+}
+
+function checkImagePathExists(path) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = path;
+        
+        setTimeout(() => {
+            resolve(false);
+        }, 3000);
+    });
+}
+
+function checkAdditionalResourcesExist(path) {
+    return new Promise(resolve => {
+        const files = [];
+        for (let i = 1; i <= 4; i++) {
+            const file = `${path}${i}.webp`;
+            files.push(file);
+        }
+        
+        const checkPromises = files.map(file => 
+            checkImagePathExists(file).then(exists => ({ file, exists }))
+        );
+        
+        Promise.all(checkPromises).then(results => {
+            const existingFiles = results.filter(result => result.exists).map(result => result.file);
+            resolve(existingFiles);
+        }).catch(() => {
+            resolve([]);
+        });
+    });
+}
+
+function isFirstVisit() {
+    const firstVisit = localStorage.getItem(FIRST_VISIT_KEY);
+    return firstVisit === null || firstVisit === 'true';
 }
 
 function restoreSession(lastVisited) {
@@ -843,12 +1097,32 @@ function setupEventListenersForRestore() {
         newChangeSelectionBtn.parentNode.replaceChild(newChangeSelectionBtnClone, newChangeSelectionBtn);
         window.domElements.changeSelectionBtn = newChangeSelectionBtnClone;
         
-        newChangeSelectionBtnClone.addEventListener('click', () => {
+        newChangeSelectionBtnClone.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dom.changeSelectionDropdown.classList.toggle('hidden');
+        });
+        
+        newChangeSelectionBtnClone.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             dom.changeSelectionDropdown.classList.toggle('hidden');
         });
         
         document.querySelectorAll('#change-selection-dropdown button').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const changeType = btn.dataset.change;
+                if (typeof openChangeSelectionModal === 'function') {
+                    openChangeSelectionModal(changeType);
+                }
+                dom.changeSelectionDropdown.classList.add('hidden');
+            });
+            
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const changeType = btn.dataset.change;
                 if (typeof openChangeSelectionModal === 'function') {
                     openChangeSelectionModal(changeType);
@@ -1134,63 +1408,134 @@ document.addEventListener('DOMContentLoaded', () => {
     
     loadLastVisitedState();
     
-    if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
-        showSessionRestorePopup(state.lastVisited);
+    setupCoreEventListeners();
+    
+    if (isFirstVisit()) {
+        showWelcomePopup();
         return; 
     }
     
-    initializeYearDropdown();
+    if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
+        showRefreshingPopup();
+        return;
+    }
+    
+    showRefreshingPopup();
+    setTimeout(() => {
+        initializeYearDropdown();
+    }, 2000);
 
-    document.querySelectorAll('.back-button').forEach(btn => {
-        btn.addEventListener('click', handleBackNavigation);
-    });
-
-    document.getElementById('download-image').addEventListener('click', downloadCurrentImage);
-
-    prevImageBtn.addEventListener('click', navigateToPreviousImage);
-    nextImageBtn.addEventListener('click', navigateToNextImage);
-
-    changeSelectionBtn.addEventListener('click', () => {
-        changeSelectionDropdown.classList.toggle('hidden');
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('#change-selection') && !changeSelectionDropdown.classList.contains('hidden')) {
-            changeSelectionDropdown.classList.add('hidden');
-        }
-    });
-
-    document.querySelectorAll('#change-selection-dropdown button').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const changeType = btn.dataset.change;
-            openChangeSelectionModal(changeType);
-            changeSelectionDropdown.classList.add('hidden');
+    function setupCoreEventListeners() {
+        document.querySelectorAll('.back-button').forEach(btn => {
+            btn.addEventListener('click', handleBackNavigation);
         });
-    });
 
-    additionalFilesBtn.addEventListener('click', loadAdditionalFiles);
-    
-    backToMainBtn.addEventListener('click', () => {
-        state.viewingAdditional = false;
-        backToMainBtn.classList.add('hidden');
-        loadCurriculumImage();
-        updateImageNavigationButtons();
-    });
-
-    curriculumImage.addEventListener('click', openImageInNewWindow);
-    
-    curriculumImage.addEventListener('load', () => {
-        if (!curriculumImage.classList.contains('hidden')) {
-            setTimeout(() => {
-                imageTooltip.classList.remove('hidden');
-            }, 1000);
+        const downloadBtn = document.getElementById('download-image');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', downloadCurrentImage);
         }
-    });
 
-    modalClose.addEventListener('click', closeModal);
-    
-    document.getElementById('about-link').addEventListener('click', (e) => {
-        e.preventDefault();
+        if (prevImageBtn) {
+            prevImageBtn.addEventListener('click', navigateToPreviousImage);
+        }
+        if (nextImageBtn) {
+            nextImageBtn.addEventListener('click', navigateToNextImage);
+        }
+
+        if (changeSelectionBtn) {
+            changeSelectionBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                changeSelectionDropdown.classList.toggle('hidden');
+            });
+            
+            changeSelectionBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                changeSelectionDropdown.classList.toggle('hidden');
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#change-selection') && !changeSelectionDropdown.classList.contains('hidden')) {
+                changeSelectionDropdown.classList.add('hidden');
+            }
+        });
+
+        document.querySelectorAll('#change-selection-dropdown button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const changeType = btn.dataset.change;
+                openChangeSelectionModal(changeType);
+                changeSelectionDropdown.classList.add('hidden');
+            });
+            
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const changeType = btn.dataset.change;
+                openChangeSelectionModal(changeType);
+                changeSelectionDropdown.classList.add('hidden');
+            });
+        });
+
+        if (additionalFilesBtn) {
+            additionalFilesBtn.addEventListener('click', loadAdditionalFiles);
+        }
+        
+        if (backToMainBtn) {
+            backToMainBtn.addEventListener('click', () => {
+                state.viewingAdditional = false;
+                backToMainBtn.classList.add('hidden');
+                loadCurriculumImage();
+                updateImageNavigationButtons();
+            });
+        }
+
+        if (curriculumImage) {
+            curriculumImage.addEventListener('click', openImageInNewWindow);
+            
+            curriculumImage.addEventListener('load', () => {
+                if (!curriculumImage.classList.contains('hidden')) {
+                    setTimeout(() => {
+                        if (imageTooltip) {
+                            imageTooltip.classList.remove('hidden');
+                        }
+                    }, 1000);
+                }
+                preloadNextImages();
+            });
+        }
+
+        if (modalClose) {
+            modalClose.addEventListener('click', closeModal);
+        }
+        
+        const aboutLink = document.getElementById('about-link');
+        if (aboutLink) {
+            aboutLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                showAboutModal();
+            });
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                caches.open(`curriculum-images-${APP_VERSION}`).then(cache => {
+                    cache.keys().then(keys => {
+                        if (keys.length > 5) {  
+                            keys.slice(0, -5).forEach(request => {
+                                cache.delete(request);
+                            });
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    function showAboutModal() {
         modalTitle.textContent = 'About ITER Curriculum Viewer';
         document.querySelector('.modal-content').innerHTML = `
             <div class="about-content">
@@ -1301,7 +1646,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         modalContainer.classList.remove('hidden');
-    });
+    }
 
     function initializeYearDropdown() {
         console.log('Initializing year dropdown');
