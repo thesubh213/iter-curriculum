@@ -203,14 +203,114 @@ function showNoImagesPopup() {
                 type: 'primary',
                 action: () => {
                     closePopup();
-                    if (window.semesterDropdown) {
-                        window.semesterDropdown.value = '';
-                        window.appState.currentSemester = null;
-                    }
+                    resetToSelectionInterface();
                 }
             }
         ],
         autoClose: 5000
+    });
+}
+
+function resetToSelectionInterface() {
+    const state = window.appState;
+    const dom = window.domElements;
+    
+    state.currentYear = null;
+    state.currentStream = null;
+    state.currentSemester = null;
+    state.currentPart = 1;
+    state.totalParts = 1;
+    state.viewingAdditional = false;
+    state.additionalFiles = [];
+    state.currentAdditionalIndex = 0;
+    
+    localStorage.removeItem('iterCurriculumLastVisited');
+    state.lastVisited = null;
+    
+    if (dom.yearDropdown) dom.yearDropdown.value = '';
+    if (dom.streamDropdown) dom.streamDropdown.value = '';
+    if (dom.semesterDropdown) dom.semesterDropdown.value = '';
+    if (window.semesterDropdown) window.semesterDropdown.value = '';
+    
+    if (dom.viewerContainer) dom.viewerContainer.classList.add('hidden');
+    if (dom.selectionContainer) dom.selectionContainer.classList.remove('hidden');
+    
+    if (dom.yearSelection) dom.yearSelection.classList.remove('hidden');
+    if (dom.streamSelection) dom.streamSelection.classList.add('hidden');
+    if (dom.semesterSelection) dom.semesterSelection.classList.add('hidden');
+    
+    if (dom.backToMainBtn) dom.backToMainBtn.classList.add('hidden');
+    
+    if (typeof initializeYearDropdownGlobal === 'function') {
+        initializeYearDropdownGlobal();
+    } else if (typeof window.initializeYearDropdown === 'function') {
+        window.initializeYearDropdown();
+    }
+}
+
+window.resetToSelectionInterface = resetToSelectionInterface;
+
+function checkImagePartsBeforeStateChange(previousState) {
+    const state = window.appState;
+    const dom = window.domElements;
+    
+    state.totalParts = 0;
+    const checkPartPromises = [];
+    
+    const mainImagePath = CONFIG.getImagePath(
+        state.currentYear, 
+        state.currentStream, 
+        state.currentSemester
+    );
+    
+    const mainImagePromise = imageExists(mainImagePath)
+        .then(exists => {
+            if (exists) {
+                state.totalParts = 1;
+                state.hasSingleImage = true;
+            } else {
+                state.hasSingleImage = false;
+            }
+        });
+        
+    checkPartPromises.push(mainImagePromise);
+    
+    for (let i = 1; i <= 10; i++) {  
+        const imagePath = CONFIG.getImagePath(
+            state.currentYear, 
+            state.currentStream, 
+            state.currentSemester, 
+            i
+        );
+        
+        const partPromise = imageExists(imagePath)
+            .then(exists => {
+                if (exists) {
+                    state.totalParts = i;
+                }
+            });
+            
+        checkPartPromises.push(partPromise);
+    }
+    
+    Promise.all(checkPartPromises).then(() => {
+        if (state.totalParts > 0) {
+            if (typeof window.loadCurriculumImage === 'function') {
+                window.loadCurriculumImage();
+            }
+            if (typeof window.updateHeader === 'function') {
+                window.updateHeader();
+            }
+            if (typeof window.saveLastVisitedState === 'function') {
+                window.saveLastVisitedState();
+            }
+        } else {
+            state.currentYear = previousState.year;
+            state.currentStream = previousState.stream;
+            state.currentSemester = previousState.semester;
+            
+            showNoImagesPopup();
+        }
     });
 }
 
@@ -288,7 +388,9 @@ function showPopup(options) {
             
             if (remaining <= 0) {
                 closePopup();
-                if (window.semesterDropdown) {
+                if (options.title === 'No Images Available') {
+                    resetToSelectionInterface();
+                } else if (window.semesterDropdown) {
                     window.semesterDropdown.value = '';
                     state.currentSemester = null;
                 }
@@ -303,7 +405,9 @@ function showPopup(options) {
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
             closePopup();
-            if (options.title === 'No Images Available' && window.semesterDropdown) {
+            if (options.title === 'No Images Available') {
+                resetToSelectionInterface();
+            } else if (options.title === 'No Images Available' && window.semesterDropdown) {
                 window.semesterDropdown.value = '';
                 state.currentSemester = null;
             }
@@ -313,7 +417,9 @@ function showPopup(options) {
     const handleEscape = (e) => {
         if (e.key === 'Escape') {
             closePopup();
-            if (options.title === 'No Images Available' && window.semesterDropdown) {
+            if (options.title === 'No Images Available') {
+                resetToSelectionInterface();
+            } else if (options.title === 'No Images Available' && window.semesterDropdown) {
                 window.semesterDropdown.value = '';
                 state.currentSemester = null;
             }
@@ -1353,6 +1459,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateHeader = updateHeader;
     window.saveLastVisitedState = saveLastVisitedState;
     window.loadImage = loadImage;
+    window.loadCurriculumImage = loadCurriculumImage;
     window.animateHide = animateHide;
     window.animateShow = animateShow;
 
@@ -1763,6 +1870,12 @@ document.addEventListener('DOMContentLoaded', () => {
             dropdown.addEventListener('change', () => {
                 const value = dropdown.value;
                 if (value) {
+                    const previousState = {
+                        year: state.currentYear,
+                        stream: state.currentStream,
+                        semester: state.currentSemester
+                    };
+                    
                     if (type === 'year') {
                         state.currentYear = value;
                     } else if (type === 'stream') {
@@ -1775,9 +1888,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     state.viewingAdditional = false;
                     backToMainBtn.classList.add('hidden');
                     closeModal();
-                    loadCurriculumImage();
-                    updateHeader();
-                    saveLastVisitedState();
+                    
+                    // Check if images exist before saving state
+                    checkImagePartsBeforeStateChange(previousState);
                 }
             });
         }

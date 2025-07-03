@@ -212,12 +212,26 @@ header h1 {
 }
 
 main {
-    max-width: 1400px;
+    max-width: 800px;
     margin: 0 auto;
     padding: 3rem 2rem;
     animation: fadeIn 0.8s ease forwards;
     position: relative;
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: calc(100vh - 200px);
+}
+
+#selection-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
 .selection-step {
@@ -226,7 +240,7 @@ main {
     -webkit-backdrop-filter: blur(20px);
     border-radius: var(--radius-xl);
     padding: 3.5rem 3rem;
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem;
     box-shadow: var(--shadow-floating);
     text-align: center;
     animation: slideUp 0.5s ease forwards;
@@ -234,6 +248,13 @@ main {
     border: 1px solid var(--glass-border);
     position: relative;
     overflow: hidden;
+    width: 100%;
+    max-width: 100%;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
 .selection-step::before {
@@ -259,6 +280,8 @@ h2 {
     font-size: 1.75rem;
     letter-spacing: 0.3px;
     position: relative;
+    text-align: center;
+    width: 100%;
 }
 
 h2::after {
@@ -282,8 +305,8 @@ select {
     -webkit-backdrop-filter: blur(10px);
     font-size: 1.1rem;
     width: 100%;
-    max-width: 450px;
-    min-width: 280px;
+    max-width: 400px;
+    min-width: 320px;
     cursor: pointer;
     appearance: none;
     color: var(--color-text);
@@ -301,6 +324,8 @@ select {
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
+    margin: 0 auto;
+    display: block;
 }
 
 select option {
@@ -1811,22 +1836,32 @@ footer a:active {
 @media (min-width: 769px) and (max-width: 1024px) {
     main {
         padding: 2.5rem 2rem;
+        max-width: 700px;
+    }
+    
+    #selection-container {
+        max-width: 550px;
     }
     
     .selection-step {
         padding: 3rem 2.5rem;
         margin-bottom: 2rem;
+        min-height: 260px;
     }
     
     h2 {
         font-size: 1.6rem;
         margin-bottom: 2.25rem;
+        text-align: center;
+        width: 100%;
     }
     
     select {
         padding: 1.125rem 1.75rem;
         font-size: 1.05rem;
-        max-width: 400px;
+        max-width: 380px;
+        margin: 0 auto;
+        display: block;
     }
     
     .back-button {
@@ -1847,17 +1882,28 @@ footer a:active {
     main {
         padding: 1.5rem 1rem;
         flex: 1;
+        min-height: calc(100vh - 160px);
+    }
+    
+    #selection-container {
+        max-width: 100%;
+        padding: 0 0.5rem;
     }
     
     .selection-step {
-        padding: 2rem 1.5rem;
+        padding: 2.5rem 2rem;
         margin-bottom: 1.5rem;
         border-radius: var(--radius-lg);
+        min-height: 240px;
+        width: 100%;
+        max-width: 100%;
     }
     
     h2 {
         font-size: 1.4rem;
-        margin-bottom: 1.75rem;
+        margin-bottom: 2rem;
+        text-align: center;
+        width: 100%;
     }
     
     select {
@@ -1865,6 +1911,9 @@ footer a:active {
         font-size: 1rem;
         max-width: 100%;
         width: 100%;
+        min-width: unset;
+        margin: 0 auto;
+        display: block;
     }
     
     #toolbar {
@@ -1984,17 +2033,28 @@ footer a:active {
     
     main {
         padding: 1rem 0.75rem;
+        min-height: calc(100vh - 140px);
+    }
+    
+    #selection-container {
+        max-width: 100%;
+        padding: 0 0.25rem;
     }
     
     .selection-step {
-        padding: 1.5rem 1rem;
+        padding: 2rem 1.5rem;
         margin-bottom: 1rem;
         border-radius: var(--radius-md);
+        min-height: 220px;
+        width: 100%;
+        max-width: 100%;
     }
     
     h2 {
         font-size: 1.2rem;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.75rem;
+        text-align: center;
+        width: 100%;
     }
     
     select {
@@ -2002,8 +2062,11 @@ footer a:active {
         font-size: 0.9rem;
         max-width: 100%;
         width: 100%;
+        min-width: unset;
         background-size: 0.7rem auto;
         background-position: right 1rem top 50%;
+        margin: 0 auto;
+        display: block;
     }
     
     #toolbar {
@@ -2076,18 +2139,29 @@ footer a:active {
     
     main {
         padding: 0.75rem 0.5rem;
+        min-height: calc(100vh - 120px);
+    }
+    
+    #selection-container {
+        max-width: 100%;
+        padding: 0;
     }
     
     .selection-step {
-        padding: 1.25rem 0.75rem;
+        padding: 1.75rem 1.25rem;
         margin-bottom: 0.75rem;
         border-radius: var(--radius-md);
+        min-height: 200px;
+        width: 100%;
+        max-width: 100%;
     }
     
     h2 {
         font-size: 1.1rem;
-        margin-bottom: 1.25rem;
+        margin-bottom: 1.5rem;
         letter-spacing: 0.2px;
+        text-align: center;
+        width: 100%;
     }
     
     h2::after {
@@ -2099,9 +2173,13 @@ footer a:active {
         padding: 0.75rem 0.875rem;
         font-size: 0.85rem;
         border-radius: var(--radius-md);
-        min-width: 240px;
+        min-width: unset;
+        width: 100%;
+        max-width: 100%;
         background-size: 0.6rem auto;
         background-position: right 0.875rem top 50%;
+        margin: 0 auto;
+        display: block;
     }
     
     .back-button {
@@ -2184,22 +2262,33 @@ footer a:active {
     main {
         padding: 4rem 3rem;
         flex: 1;
+        max-width: 900px;
+        min-height: calc(100vh - 240px);
+    }
+    
+    #selection-container {
+        max-width: 650px;
     }
     
     .selection-step {
         padding: 4rem 3.5rem;
         margin-bottom: 3rem;
+        min-height: 320px;
     }
     
     h2 {
         font-size: 2rem;
         margin-bottom: 3rem;
+        text-align: center;
+        width: 100%;
     }
     
     select {
         padding: 1.5rem 2.5rem;
         font-size: 1.2rem;
-        max-width: 500px;
+        max-width: 480px;
+        margin: 0 auto;
+        display: block;
     }
     
     #toolbar {
@@ -2251,46 +2340,31 @@ footer a:active {
 
 @media (min-width: 1600px) {
     main {
-        max-width: 1600px;
+        max-width: 1000px;
         padding: 5rem 4rem;
         flex: 1;
+        min-height: calc(100vh - 280px);
+    }
+    
+    #selection-container {
+        max-width: 700px;
     }
     
     .selection-step {
         padding: 5rem 4rem;
+        min-height: 360px;
     }
     
     h2 {
         font-size: 2.25rem;
+        text-align: center;
+        width: 100%;
     }
     
     select {
         font-size: 1.3rem;
-        max-width: 550px;
-    }
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --color-primary: #8BAEA0;
-        --color-secondary: #D88F77;
-        --color-dark: #1A2223;
-        --color-light: #212A2B;
-        --color-gray: #6D7472;
-        --color-text: #E2E2E2;
-        --color-border: #3A4444;
-        --color-hover: #95B8AA;
-    }
-    
-    body, .modal, .dropdown-content {
-        background-color: #1E2729;
-    }
-    
-    .selection-step, #viewer-container {
-        background-color: #252E30;
-    }
-    
-    #image-container {
-        background-color: #1C2628;
+        max-width: 520px;
+        margin: 0 auto;
+        display: block;
     }
 }
