@@ -54,8 +54,24 @@ if ('serviceWorker' in navigator) {
 function imageExists(url) {
     return new Promise(resolve => {
         const img = new Image();
-        img.onload = () => resolve(true);
-        img.onerror = () => resolve(false);
+        
+        // Set a longer timeout for image checking
+        const timeout = setTimeout(() => {
+            img.onload = null;
+            img.onerror = null;
+            resolve(false);
+        }, 8000); // Increased from default to 8 seconds
+        
+        img.onload = () => {
+            clearTimeout(timeout);
+            resolve(true);
+        };
+        
+        img.onerror = () => {
+            clearTimeout(timeout);
+            resolve(false);
+        };
+        
         img.src = url;
     });
 }
@@ -859,13 +875,25 @@ function updateProgress(completed, total, progressFill, progressText) {
 function checkImagePathExists(path) {
     return new Promise(resolve => {
         const img = new Image();
-        img.onload = () => resolve(true);
-        img.onerror = () => resolve(false);
-        img.src = path;
         
-        setTimeout(() => {
+        // Set timeout for initial path checking (can be shorter for batch operations)
+        const timeout = setTimeout(() => {
+            img.onload = null;
+            img.onerror = null;
             resolve(false);
-        }, 3000);
+        }, 5000); // 5 seconds for batch checking
+        
+        img.onload = () => {
+            clearTimeout(timeout);
+            resolve(true);
+        };
+        
+        img.onerror = () => {
+            clearTimeout(timeout);
+            resolve(false);
+        };
+        
+        img.src = path;
     });
 }
 
@@ -910,22 +938,33 @@ function getAvailablePartsFromCache(year, stream, semester, cachedPaths) {
     let hasSingleImage = false;
     let maxPartFound = 0;
     
+    // Generate expected paths and check if they exist in cache
     const mainImagePath = CONFIG.getImagePath(year, stream, semester);
-    const hasMainImage = cachedPaths.includes(mainImagePath);
+    const hasMainImage = cachedPaths.some(path => path.includes(mainImagePath) || path === mainImagePath);
     
+    console.log('Checking cache for main image:', mainImagePath, 'Found:', hasMainImage);
+    
+    // Check for numbered parts
     for (let i = 1; i <= 10; i++) {
         const partPath = CONFIG.getImagePath(year, stream, semester, i);
-        if (cachedPaths.includes(partPath)) {
+        const hasPartImage = cachedPaths.some(path => path.includes(partPath) || path === partPath);
+        
+        if (hasPartImage) {
             maxPartFound = i;
+            console.log(`Found part ${i} in cache:`, partPath);
         }
     }
     
     if (maxPartFound > 0) {
         totalParts = maxPartFound;
         hasSingleImage = false;
+        console.log(`Cache shows ${maxPartFound} parts available`);
     } else if (hasMainImage) {
         totalParts = 1;
         hasSingleImage = true;
+        console.log('Cache shows single main image available');
+    } else {
+        console.log('Cache shows no images available for this combination');
     }
     
     return { totalParts, hasSingleImage };
@@ -1692,27 +1731,16 @@ function initializeSemesterDropdownGlobal() {
             state.currentPart = 1;
             state.viewingAdditional = false;
             
-            const cachedPaths = getCachedImagePaths();
-            if (cachedPaths) {
-                const availableParts = getAvailablePartsFromCache(
-                    state.currentYear,
-                    state.currentStream,
-                    state.currentSemester,
-                    cachedPaths
-                );
-                
-                if (availableParts.totalParts === 0) {
-                    showNoImagesPopup();
-                    return;
-                }
-            }
+            console.log('Global semester selected:', state.currentSemester);
             
+            // Always show loading and switch to viewer first
             showLoadingGlobal("Loading curriculum image...");
             
             setTimeout(() => {
                 dom.selectionContainer.classList.add('hidden');
                 dom.viewerContainer.classList.remove('hidden');
                 
+                // Then check and load images
                 checkImageParts();
                 
                 setTimeout(() => {
@@ -2117,27 +2145,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.currentPart = 1;
                 state.viewingAdditional = false;
                 
-                const cachedPaths = getCachedImagePaths();
-                if (cachedPaths) {
-                    const availableParts = getAvailablePartsFromCache(
-                        state.currentYear,
-                        state.currentStream,
-                        state.currentSemester,
-                        cachedPaths
-                    );
-                    
-                    if (availableParts.totalParts === 0) {
-                        showNoImagesPopup();
-                        return;
-                    }
-                }
+                console.log('Semester selected:', state.currentSemester);
                 
+                // Always show loading and switch to viewer first
                 showLoadingGlobal("Loading curriculum image...");
                 
                 setTimeout(() => {
                     selectionContainer.classList.add('hidden');
                     viewerContainer.classList.remove('hidden');
                     
+                    // Then load the curriculum image
                     loadCurriculumImage();
                     
                     setTimeout(() => {
@@ -2160,6 +2177,9 @@ document.addEventListener('DOMContentLoaded', () => {
             semester: state.currentSemester
         });
         
+        // Always show loading first
+        showLoadingGlobal("Checking for curriculum images...");
+        
         const cachedPaths = getCachedImagePaths();
         if (cachedPaths && cachedPaths.length > 0) {
             console.log('Using cached paths for fast check');
@@ -2171,6 +2191,7 @@ document.addEventListener('DOMContentLoaded', () => {
             );
             
             if (availableParts.totalParts > 0) {
+                console.log('Found images in cache:', availableParts);
                 state.totalParts = availableParts.totalParts;
                 state.hasSingleImage = availableParts.hasSingleImage;
                 
@@ -2180,10 +2201,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveLastVisitedState();
                 setupViewerEventListeners();
                 return;
+            } else {
+                console.log('Cache shows no images, performing live check as fallback');
             }
         }
         
-        console.log('Cache miss, performing live image check');
+        console.log('Performing live image check...');
         state.totalParts = 0;
         state.hasSingleImage = false;
         
@@ -2201,6 +2224,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const mainImagePromise = imageExists(mainImagePath)
             .then(exists => {
+                console.log('Main image exists:', exists);
                 if (exists) {
                     hasMainImage = true;
                 }
@@ -2219,6 +2243,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const partPromise = imageExists(imagePath)
                 .then(exists => {
                     if (exists) {
+                        console.log(`Part ${i} exists:`, imagePath);
                         maxPartFound = Math.max(maxPartFound, i);
                     }
                 });
@@ -2230,9 +2255,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (maxPartFound > 0) {
                 state.totalParts = maxPartFound;
                 state.hasSingleImage = false;
+                console.log(`Found ${maxPartFound} parts`);
             } else if (hasMainImage) {
                 state.totalParts = 1;
                 state.hasSingleImage = true;
+                console.log('Found single main image');
             }
             
             console.log('Image check completed for:', {
@@ -2246,14 +2273,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             if (state.totalParts > 0) {
+                console.log('Loading images...');
                 loadImageWithPart();
                 updateImageNavigationButtons();
                 updateHeader();
                 saveLastVisitedState();
-                
-                
                 setupViewerEventListeners();
             } else {
+                console.log('No images found, showing no images popup');
                 hideLoadingGlobal();
                 showNoImagesPopup();
             }
