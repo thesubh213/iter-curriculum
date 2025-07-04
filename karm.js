@@ -3,6 +3,32 @@ const VERSION_KEY = 'iter-curriculum-version';
 const FIRST_VISIT_KEY = 'iter-curriculum-first-visit';
 const IMAGE_PATHS_CACHE_KEY = 'iter-curriculum-image-paths';
 
+// Global error handler
+window.addEventListener('error', (event) => {
+    console.error('Global error caught:', event.error);
+    
+    // Don't show popup for minor script errors
+    if (event.error && event.error.message && !event.error.message.includes('Script error')) {
+        if (typeof showErrorGlobal === 'function') {
+            showErrorGlobal('An unexpected error occurred. Please refresh the page if the problem persists.');
+        }
+    }
+});
+
+// Global promise rejection handler
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+    
+    if (event.reason && typeof event.reason === 'object' && event.reason.message) {
+        if (typeof showErrorGlobal === 'function') {
+            showErrorGlobal('Network or loading error occurred. Please check your connection and try again.');
+        }
+    }
+    
+    // Prevent the default browser warning
+    event.preventDefault();
+});
+
 function checkVersionAndClearCache() {
     const savedVersion = localStorage.getItem(VERSION_KEY);
     
@@ -51,24 +77,53 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-const imageExists = (url, timeout = 8000) => {
+const imageExists = (url, timeout = 12000) => {
     return new Promise(resolve => {
+        // Add safety check for URL
+        if (!url || typeof url !== 'string') {
+            console.warn('Invalid URL provided to imageExists:', url);
+            resolve(false);
+            return;
+        }
+        
         const img = new Image();
+        let completed = false;
         
         const timeoutId = setTimeout(() => {
-            img.onload = img.onerror = null;
-            resolve(false);
+            if (!completed) {
+                completed = true;
+                img.onload = img.onerror = null;
+                img.src = '';
+                console.log('⏰ Image check timeout for:', url);
+                resolve(false);
+            }
         }, timeout);
         
         const cleanup = (result) => {
-            clearTimeout(timeoutId);
-            img.onload = img.onerror = null;
-            resolve(result);
+            if (!completed) {
+                completed = true;
+                clearTimeout(timeoutId);
+                img.onload = img.onerror = null;
+                resolve(result);
+            }
         };
         
-        img.onload = () => cleanup(true);
-        img.onerror = () => cleanup(false);
-        img.src = url;
+        img.onload = () => {
+            console.log('✅ Image exists:', url);
+            cleanup(true);
+        };
+        img.onerror = () => {
+            console.log('❌ Image does not exist:', url);
+            cleanup(false);
+        };
+        
+        // Add error handling for network issues
+        try {
+            img.src = url;
+        } catch (error) {
+            console.error('Error setting image src:', error);
+            cleanup(false);
+        }
     });
 };
 
@@ -108,88 +163,130 @@ function showNoAdditionalFilesPopup() {
 
 function showLoadingGlobal(message) {
     const dom = window.domElements;
-    if (!dom) return;
+    if (!dom || !dom.loadingContainer) {
+        console.warn('DOM elements not available for showLoadingGlobal');
+        return;
+    }
     
-    dom.loadingContainer.classList.remove('hidden');
-    dom.imageTooltip.classList.add('hidden');
-    dom.loadingBarInner.style.width = '0%';
-    dom.loadingPercentage.textContent = '0%';
-    
-    dom.loadingContainer.style.opacity = '0';
-    void dom.loadingContainer.offsetWidth; 
-    dom.loadingContainer.style.animation = 'fadeIn 0.4s ease forwards';
-    
-    dom.curriculumImage.classList.add('hidden');
+    try {
+        dom.loadingContainer.classList.remove('hidden');
+        if (dom.imageTooltip) dom.imageTooltip.classList.add('hidden');
+        if (dom.loadingBarInner) dom.loadingBarInner.style.width = '0%';
+        if (dom.loadingPercentage) dom.loadingPercentage.textContent = '0%';
+        
+        dom.loadingContainer.style.opacity = '0';
+        void dom.loadingContainer.offsetWidth; 
+        dom.loadingContainer.style.animation = 'fadeIn 0.4s ease forwards';
+        
+        if (dom.curriculumImage) dom.curriculumImage.classList.add('hidden');
+    } catch (error) {
+        console.error('Error in showLoadingGlobal:', error);
+    }
 }
 
 function hideLoadingGlobal() {
     const dom = window.domElements;
-    if (!dom) return;
+    if (!dom || !dom.loadingContainer) {
+        console.warn('DOM elements not available for hideLoadingGlobal');
+        return;
+    }
     
-    dom.loadingContainer.style.animation = 'fadeOut 0.3s ease forwards';
-    
-    setTimeout(() => {
-        dom.loadingContainer.classList.add('hidden');
-        dom.curriculumImage.classList.remove('hidden');
-        
-        dom.curriculumImage.style.opacity = '0';
-        void dom.curriculumImage.offsetWidth; 
-        dom.curriculumImage.style.animation = 'zoomIn 0.5s ease forwards';
+    try {
+        dom.loadingContainer.style.animation = 'fadeOut 0.3s ease forwards';
         
         setTimeout(() => {
-            dom.imageTooltip.classList.remove('hidden');
-        }, 800);
-    }, 300);
+            if (dom.loadingContainer) dom.loadingContainer.classList.add('hidden');
+            if (dom.curriculumImage) {
+                dom.curriculumImage.classList.remove('hidden');
+                
+                dom.curriculumImage.style.opacity = '0';
+                void dom.curriculumImage.offsetWidth; 
+                dom.curriculumImage.style.animation = 'zoomIn 0.5s ease forwards';
+                
+                setTimeout(() => {
+                    if (dom.imageTooltip) dom.imageTooltip.classList.remove('hidden');
+                }, 800);
+            }
+        }, 300);
+    } catch (error) {
+        console.error('Error in hideLoadingGlobal:', error);
+    }
 }
 
 function showErrorGlobal(message) {
-    hideLoadingGlobal();
-    
-    if (message.includes('Network error') || message.includes('Failed to load image')) {
-        showPopup({
-            icon: 'error',
-            title: 'Connection Error',
-            message: `Unable to load the curriculum image due to a network issue.<br><br>Please check your internet connection and try again.`,
-            buttons: [
-                {
-                    text: 'Retry',
-                    type: 'primary',
-                    action: () => {
-                        closePopup();
+    try {
+        hideLoadingGlobal();
+        
+        // Add safety check for message
+        const errorMessage = message || 'An unknown error occurred';
+        
+        if (errorMessage.includes('Network error') || errorMessage.includes('Failed to load image') || errorMessage.includes('HTTP 404') || errorMessage.includes('HTTP 403')) {
+            showPopup({
+                icon: 'error',
+                title: 'Connection Error',
+                message: `Unable to load the curriculum image.<br><br>This could be due to:<br>• Network connectivity issues<br>• The image file may not exist<br>• Server temporary unavailability<br><br>Please check your internet connection and try again.`,
+                buttons: [
+                    {
+                        text: 'Retry',
+                        type: 'primary',
+                        action: () => {
+                            closePopup();
+                            // Retry loading
+                            const state = window.appState;
+                            if (state && state.currentYear && state.currentStream && state.currentSemester) {
+                                checkImageParts();
+                            }
+                        }
+                    },
+                    {
+                        text: 'Go Back',
+                        type: 'secondary',
+                        action: () => {
+                            closePopup();
+                            const dom = window.domElements;
+                            if (dom && dom.viewerContainer && dom.selectionContainer) {
+                                dom.viewerContainer.classList.add('hidden');
+                                dom.selectionContainer.classList.remove('hidden');
+                                animateShow(dom.selectionContainer);
+                            }
+                        }
                     }
-                },
-                {
-                    text: 'Go Back',
-                    type: 'secondary',
-                    action: () => {
-                        closePopup();
+                ],
+                autoClose: 10000
+            });
+        } else {
+            showPopup({
+                icon: 'error',
+                title: 'Error',
+                message: errorMessage,
+                buttons: [
+                    {
+                        text: 'OK',
+                        type: 'primary',
+                        action: () => {
+                            closePopup();
+                        }
                     }
-                }
-            ],
-            autoClose: 8000
-        });
-    } else {
-        showPopup({
-            icon: 'error',
-            title: 'Error',
-            message: message,
-            buttons: [
-                {
-                    text: 'OK',
-                    type: 'primary',
-                    action: () => {
-                        closePopup();
-                    }
-                }
-            ],
-            autoClose: 5000
-        });
+                ],
+                autoClose: 6000
+            });
+        }
+    } catch (error) {
+        console.error('Error in showErrorGlobal:', error);
+        // Fallback error display
+        alert('An error occurred: ' + (message || 'Unknown error'));
     }
 }
 
 
 function showNoImagesPopup() {
     const currentState = window.appState;
+    
+    if (!currentState || !CONFIG) {
+        console.error('State or CONFIG not available for showNoImagesPopup');
+        return;
+    }
+    
     const stream = CONFIG.streams.find(s => s.shortCode === currentState.currentStream);
     const streamName = stream ? stream.displayName : currentState.currentStream;
     
@@ -200,21 +297,54 @@ function showNoImagesPopup() {
         streamName: streamName
     });
     
-    showPopup({
-        icon: 'image-off',
-        title: 'No Images Available',
-        message: `Sorry, no curriculum images are available for:<br><br><strong>${streamName}</strong><br>Semester ${currentState.currentSemester} (${currentState.currentYear})<br><br>Please try selecting a different combination or check back later.`,
-        buttons: [
-            {
-                text: 'Got it',
-                type: 'primary',
-                action: () => {
-                    closePopup();
+    try {
+        showPopup({
+            icon: 'image-off',
+            title: 'No Images Available',
+            message: `Sorry, no curriculum images are available for:<br><br><strong>${streamName}</strong><br>Semester ${currentState.currentSemester} (${currentState.currentYear})<br><br>Please try selecting a different combination or check back later.`,
+            buttons: [
+                {
+                    text: 'Got it',
+                    type: 'primary',
+                    action: () => {
+                        closePopup();
+                        const dom = window.domElements;
+                        if (dom && dom.viewerContainer && dom.selectionContainer) {
+                            dom.viewerContainer.classList.add('hidden');
+                            dom.selectionContainer.classList.remove('hidden');
+                            // Reset dropdowns
+                            try {
+                                if (dom.yearDropdown) dom.yearDropdown.value = '';
+                                if (dom.streamDropdown) dom.streamDropdown.value = '';
+                                if (dom.semesterDropdown) dom.semesterDropdown.value = '';
+                                // Show year selection again
+                                if (dom.yearSelection) {
+                                    dom.yearSelection.classList.remove('hidden');
+                                }
+                                if (dom.streamSelection) {
+                                    dom.streamSelection.classList.add('hidden');
+                                }
+                                if (dom.semesterSelection) {
+                                    dom.semesterSelection.classList.add('hidden');
+                                }
+                                animateShow(dom.selectionContainer);
+                            } catch (error) {
+                                console.error('Error resetting UI:', error);
+                            }
+                        }
+                        // Reset state
+                        currentState.currentYear = null;
+                        currentState.currentStream = null;
+                        currentState.currentSemester = null;
+                    }
                 }
-            }
-        ],
-        autoClose: 6000
-    });
+            ],
+            autoClose: 10000
+        });
+    } catch (error) {
+        console.error('Error showing no images popup:', error);
+        alert('No curriculum images are available for the selected combination. Please try a different selection.');
+    }
 }
 
 function resetToSelectionInterface() {
@@ -975,6 +1105,19 @@ function restoreSession(lastVisited) {
     
     if (!dom || !state) {
         console.error('DOM elements or state not available for session restoration');
+        // Fallback to normal initialization
+        setTimeout(() => {
+            showInitializingPopup();
+        }, 100);
+        return;
+    }
+    
+    // Validate lastVisited data
+    if (!lastVisited || !lastVisited.year || !lastVisited.stream || !lastVisited.semester) {
+        console.error('Invalid last visited data:', lastVisited);
+        setTimeout(() => {
+            showInitializingPopup();
+        }, 100);
         return;
     }
     
@@ -987,15 +1130,23 @@ function restoreSession(lastVisited) {
     state.viewingAdditional = false;
     state.eventListenersSetup = false; 
     
-    dom.selectionContainer.classList.add('hidden');
-    dom.viewerContainer.classList.remove('hidden');
-    
-    showLoadingGlobal("⚡ Restoring session...");
-    
-    setupEventListenersForRestore();
-    state.eventListenersSetup = true;
-    
-    attemptInstantCacheLoad();
+    try {
+        dom.selectionContainer.classList.add('hidden');
+        dom.viewerContainer.classList.remove('hidden');
+        
+        showLoadingGlobal("⚡ Restoring session...");
+        
+        setupEventListenersForRestore();
+        state.eventListenersSetup = true;
+        
+        attemptInstantCacheLoad();
+    } catch (error) {
+        console.error('Error during session restoration:', error);
+        // Fallback to normal initialization
+        setTimeout(() => {
+            showInitializingPopup();
+        }, 100);
+    }
 }
 
 function attemptInstantCacheLoad() {
@@ -1717,53 +1868,61 @@ function initializeYearDropdownGlobal() {
     
     if (!dom || !state) {
         console.error('DOM elements or state not available');
+        setTimeout(() => initializeYearDropdownGlobal(), 100); // Retry after 100ms
         return;
     }
     
     if (!dom.yearDropdown) {
         console.error('Year dropdown element not found');
+        setTimeout(() => initializeYearDropdownGlobal(), 100); // Retry after 100ms
         return;
     }
     
     if (typeof CONFIG === 'undefined' || !CONFIG.years) {
         console.error('CONFIG object or years not available');
+        setTimeout(() => initializeYearDropdownGlobal(), 100); // Retry after 100ms
         return;
     }
     
     console.log('Initializing year dropdown globally');
     
-    dom.yearDropdown.innerHTML = '';
-    dom.yearDropdown.onchange = null;
-    
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'Select Year';
-    dom.yearDropdown.appendChild(defaultOption);
-    
-    CONFIG.years.forEach(year => {
-        const option = document.createElement('option');
-        option.value = year;
-        option.textContent = year;
-        dom.yearDropdown.appendChild(option);
-    });
-    
-    console.log(`Year dropdown populated with ${CONFIG.years.length} options`);
-    
-    dom.yearDropdown.addEventListener('change', () => {
-        console.log('Year changed to:', dom.yearDropdown.value);
-        if (dom.yearDropdown.value) {
-            state.currentYear = dom.yearDropdown.value;
-            
-            dom.yearSelection.style.animation = 'fadeOut 0.3s ease forwards';
-            setTimeout(() => {
-                dom.yearSelection.classList.add('hidden');
-                dom.streamSelection.classList.remove('hidden');
-                dom.streamSelection.style.animation = 'fadeIn 0.3s ease forwards';
-            }, 300);
-            
-            initializeStreamDropdownGlobal();
-        }
-    });
+    try {
+        dom.yearDropdown.innerHTML = '';
+        dom.yearDropdown.onchange = null;
+        
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Select Year';
+        dom.yearDropdown.appendChild(defaultOption);
+        
+        CONFIG.years.forEach(year => {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            dom.yearDropdown.appendChild(option);
+        });
+        
+        console.log(`Year dropdown populated with ${CONFIG.years.length} options`);
+        
+        dom.yearDropdown.addEventListener('change', () => {
+            console.log('Year changed to:', dom.yearDropdown.value);
+            if (dom.yearDropdown.value) {
+                state.currentYear = dom.yearDropdown.value;
+                
+                dom.yearSelection.style.animation = 'fadeOut 0.3s ease forwards';
+                setTimeout(() => {
+                    dom.yearSelection.classList.add('hidden');
+                    dom.streamSelection.classList.remove('hidden');
+                    dom.streamSelection.style.animation = 'fadeIn 0.3s ease forwards';
+                }, 300);
+                
+                initializeStreamDropdownGlobal();
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing year dropdown:', error);
+        showErrorGlobal('Failed to initialize year selection. Please refresh the page.');
+    }
 }
 
 function initializeStreamDropdownGlobal() {
@@ -1868,7 +2027,22 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM Content Loaded - Starting initialization');
     console.log('CONFIG object:', CONFIG);
     
-    checkVersionAndClearCache();
+    // Validate CONFIG object availability
+    if (!CONFIG || !CONFIG.years || !CONFIG.streams || !CONFIG.semesters) {
+        console.error('CONFIG object not properly loaded');
+        setTimeout(() => {
+            if (!CONFIG) {
+                alert('Application failed to load properly. Please refresh the page.');
+            }
+        }, 1000);
+        return;
+    }
+    
+    try {
+        checkVersionAndClearCache();
+    } catch (error) {
+        console.error('Error checking version:', error);
+    }
     
     const state = {
         currentYear: null,
@@ -1941,6 +2115,24 @@ document.addEventListener('DOMContentLoaded', () => {
         backToMainBtn
     };
 
+    // Validate that all required DOM elements are found
+    const requiredElements = [
+        'yearDropdown', 'streamDropdown', 'semesterDropdown',
+        'yearSelection', 'streamSelection', 'semesterSelection',
+        'selectionContainer', 'viewerContainer', 'curriculumImage',
+        'loadingContainer', 'imageInfo'
+    ];
+    
+    const missingElements = requiredElements.filter(element => !window.domElements[element]);
+    
+    if (missingElements.length > 0) {
+        console.error('Missing required DOM elements:', missingElements);
+        setTimeout(() => {
+            alert('Page not loaded properly. Missing elements: ' + missingElements.join(', ') + '. Please refresh the page.');
+        }, 1000);
+        return;
+    }
+
     window.semesterDropdown = semesterDropdown;
     
     function updateOnlineStatus() {
@@ -1955,25 +2147,40 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('offline', updateOnlineStatus);
     updateOnlineStatus();
     
-    loadLastVisitedState();
-    
-    setupCoreEventListeners();
-    
-    if (isFirstVisit()) {
-        showWelcomePopup();
-        return; 
+    try {
+        loadLastVisitedState();
+    } catch (error) {
+        console.error('Error loading last visited state:', error);
     }
     
-    if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
-        console.log('Restoring session for:', state.lastVisited);
-        showRefreshingPopup();
-        return;
+    try {
+        setupCoreEventListeners();
+    } catch (error) {
+        console.error('Error setting up core event listeners:', error);
     }
     
-    console.log('First time or no previous session, showing initializing popup');
-    setTimeout(() => {
-        showInitializingPopup();
-    }, 100); 
+    try {
+        if (isFirstVisit()) {
+            showWelcomePopup();
+            return; 
+        }
+        
+        if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
+            console.log('Restoring session for:', state.lastVisited);
+            showRefreshingPopup();
+            return;
+        }
+        
+        console.log('First time or no previous session, showing initializing popup');
+        setTimeout(() => {
+            showInitializingPopup();
+        }, 100);
+    } catch (error) {
+        console.error('Error in initialization flow:', error);
+        setTimeout(() => {
+            showInitializingPopup();
+        }, 100);
+    } 
 
     function setupCoreEventListeners() {
         document.querySelectorAll('.back-button').forEach(btn => {
@@ -2290,6 +2497,20 @@ document.addEventListener('DOMContentLoaded', () => {
             semester: state.currentSemester
         });
         
+        // Validate state before proceeding
+        if (!state.currentYear || !state.currentStream || !state.currentSemester) {
+            console.error('Invalid state for image check:', state);
+            showErrorGlobal('Invalid selection state. Please select year, stream, and semester again.');
+            return;
+        }
+        
+        // Validate CONFIG availability
+        if (!CONFIG || !CONFIG.getImagePath) {
+            console.error('CONFIG object not available');
+            showErrorGlobal('Application configuration not loaded. Please refresh the page.');
+            return;
+        }
+        
         // Always show loading first
         showLoadingGlobal("Checking for curriculum images...");
         
@@ -2327,11 +2548,19 @@ document.addEventListener('DOMContentLoaded', () => {
         let hasMainImage = false;
         let maxPartFound = 0;
         
-        const mainImagePath = CONFIG.getImagePath(
-            state.currentYear, 
-            state.currentStream, 
-            state.currentSemester
-        );
+        let mainImagePath;
+        try {
+            mainImagePath = CONFIG.getImagePath(
+                state.currentYear, 
+                state.currentStream, 
+                state.currentSemester
+            );
+        } catch (error) {
+            console.error('Error getting main image path:', error);
+            hideLoadingGlobal();
+            showErrorGlobal('Error generating image path. Please check your selection.');
+            return;
+        }
         
         console.log('Checking main image path:', mainImagePath);
         
@@ -2341,27 +2570,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (exists) {
                     hasMainImage = true;
                 }
+                return exists;
+            })
+            .catch(error => {
+                console.error('Error checking main image:', error);
+                return false;
             });
             
         checkPartPromises.push(mainImagePromise);
         
-        for (let i = 1; i <= 10; i++) {  
-            const imagePath = CONFIG.getImagePath(
-                state.currentYear, 
-                state.currentStream, 
-                state.currentSemester, 
-                i
-            );
-            
-            const partPromise = imageExists(imagePath)
-                .then(exists => {
-                    if (exists) {
-                        console.log(`Part ${i} exists:`, imagePath);
-                        maxPartFound = Math.max(maxPartFound, i);
-                    }
-                });
+        // Check for multiple parts
+        for (let i = 1; i <= 8; i++) {  // Reduced from 10 to 8 for better performance
+            try {
+                const imagePath = CONFIG.getImagePath(
+                    state.currentYear, 
+                    state.currentStream, 
+                    state.currentSemester, 
+                    i
+                );
                 
-            checkPartPromises.push(partPromise);
+                const partPromise = imageExists(imagePath)
+                    .then(exists => {
+                        if (exists) {
+                            console.log(`Part ${i} exists:`, imagePath);
+                            maxPartFound = Math.max(maxPartFound, i);
+                        }
+                        return exists;
+                    })
+                    .catch(error => {
+                        console.error(`Error checking part ${i}:`, error);
+                        return false;
+                    });
+                    
+                checkPartPromises.push(partPromise);
+            } catch (error) {
+                console.error(`Error generating path for part ${i}:`, error);
+            }
         }
         
         Promise.all(checkPartPromises).then(() => {
@@ -2400,7 +2644,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(error => {
             console.error('Error during image check:', error);
             hideLoadingGlobal();
-            showErrorGlobal('Failed to load curriculum images. Please try again.');
+            showErrorGlobal('Failed to check for curriculum images. This might be due to network issues. Please try again.');
         });
     }
 
@@ -2588,6 +2832,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadImage = async (src) => {
         console.log('📸 Loading image:', src);
         
+        // Add safety checks
+        if (!src || typeof src !== 'string') {
+            console.error('Invalid image source provided:', src);
+            showError('Invalid image source');
+            return;
+        }
+        
         const globalLoadingActive = !loadingContainer.classList.contains('hidden');
         
         if (!globalLoadingActive) {
@@ -2595,13 +2846,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         try {
-            const response = await fetch(src);
+            // Add timeout to fetch request
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+            
+            const response = await fetch(src, {
+                signal: controller.signal,
+                cache: 'default' // Allow browser caching
+            });
+            
+            clearTimeout(timeoutId);
             
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             const blob = await response.blob();
+            
+            // Validate blob
+            if (!blob || blob.size === 0) {
+                throw new Error('Received empty image data');
+            }
             
             if (globalLoadingActive) {
                 hideLoadingGlobal();
@@ -2610,13 +2875,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const objectURL = URL.createObjectURL(blob);
-            curriculumImage.src = objectURL;
-            updateHeader();
+            
+            // Add error handling for image element
+            curriculumImage.onerror = () => {
+                URL.revokeObjectURL(objectURL);
+                console.error('❌ Failed to display image');
+                showError('Failed to display image');
+            };
             
             curriculumImage.onload = () => {
                 URL.revokeObjectURL(objectURL);
                 console.log('✅ Image loaded successfully');
+                updateHeader();
+                
+                // Clear any previous error handlers
+                curriculumImage.onerror = null;
             };
+            
+            curriculumImage.src = objectURL;
             
         } catch (error) {
             if (globalLoadingActive) {
@@ -2626,7 +2902,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             console.error('❌ Error loading image:', error);
-            showError(`Failed to load image: ${error.message}`);
+            
+            let errorMessage = 'Failed to load image';
+            if (error.name === 'AbortError') {
+                errorMessage = 'Image loading timed out';
+            } else if (error.message.includes('HTTP 404')) {
+                errorMessage = 'Image not found on server';
+            } else if (error.message.includes('HTTP 403')) {
+                errorMessage = 'Access denied to image';
+            } else if (error.message.includes('Failed to fetch')) {
+                errorMessage = 'Network error while loading image';
+            }
+            
+            showError(errorMessage);
         }
     };
 
