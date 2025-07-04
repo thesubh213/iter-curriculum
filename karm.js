@@ -620,14 +620,14 @@ function showWelcomePopup() {
 }
 
 function showInitializingPopup() {
-    console.log('Fast initializing for first time setup');
+    console.log('Initializing for first time setup - loading image paths');
     const overlay = document.createElement('div');
     overlay.className = 'popup-overlay initializing-overlay';
     overlay.innerHTML = `
         <div class="initializing-popup">
             <div class="initializing-spinner"></div>
             <h3>Setting Up</h3>
-            <p>Preparing your workspace...</p>
+            <p>Loading curriculum image paths...</p>
             <div class="initializing-progress">
                 <div class="progress-bar">
                     <div class="progress-fill" id="init-progress-fill"></div>
@@ -639,57 +639,45 @@ function showInitializingPopup() {
     
     document.body.appendChild(overlay);
     
-    const progressFill = document.getElementById('init-progress-fill');
-    const progressText = document.getElementById('init-progress-text');
-    
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-        progress += 25;
-        if (progressFill) progressFill.style.width = `${progress}%`;
-        if (progressText) progressText.textContent = `${progress}%`;
+    loadAllImagePaths(true).then(() => {
+        console.log('Image paths loaded successfully');
+        localStorage.setItem(FIRST_VISIT_KEY, 'false');
         
-        if (progress >= 100) {
-            clearInterval(progressInterval);
-            localStorage.setItem(FIRST_VISIT_KEY, 'false');
-            
+        setTimeout(() => {
+            closeInitializingPopup();
+            console.log('Setup complete, initializing year dropdown');
             setTimeout(() => {
-                closeInitializingPopup();
-                console.log('Fast setup complete, initializing year dropdown');
-                setTimeout(() => {
-                    if (window.domElements && window.domElements.yearDropdown && typeof CONFIG !== 'undefined' && CONFIG.years) {
+                if (window.domElements && window.domElements.yearDropdown && typeof CONFIG !== 'undefined' && CONFIG.years) {
+                    initializeYearDropdownGlobal();
+                } else {
+                    console.error('DOM elements or CONFIG not ready, retrying...');
+                    setTimeout(() => {
                         initializeYearDropdownGlobal();
-                    } else {
-                        console.error('DOM elements or CONFIG not ready, retrying...');
-                        setTimeout(() => {
-                            initializeYearDropdownGlobal();
-                        }, 500);
-                    }
-                }, 300);
+                    }, 500);
+                }
             }, 300);
-        }
-    }, 200); 
+        }, 500);
+    }).catch(error => {
+        console.error('Error loading image paths:', error);
+        localStorage.setItem(FIRST_VISIT_KEY, 'false');
+        closeInitializingPopup();
+        setTimeout(() => {
+            initializeYearDropdownGlobal();
+        }, 300);
+    });
 }
 
 function showRefreshingPopup() {
-    console.log('Fast session restoration - skipping slow path loading');
+    console.log('Refreshing image paths and checking for updates');
     const state = window.appState;
     
-    if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
-        console.log('Starting immediate session restoration');
-        setTimeout(() => {
-            restoreSession(state.lastVisited);
-        }, 100); 
-        return;
-    }
-    
-    console.log('No session to restore, showing initializing popup');
     const overlay = document.createElement('div');
     overlay.className = 'popup-overlay initializing-overlay';
     overlay.innerHTML = `
         <div class="initializing-popup">
             <div class="initializing-spinner"></div>
-            <h3>Setting Up</h3>
-            <p>Preparing your workspace...</p>
+            <h3>Refreshing</h3>
+            <p>Checking for new curriculum paths...</p>
             <div class="initializing-progress">
                 <div class="progress-bar">
                     <div class="progress-fill" id="refresh-progress-fill"></div>
@@ -701,17 +689,71 @@ function showRefreshingPopup() {
     
     document.body.appendChild(overlay);
     
-    setTimeout(() => {
+    loadAllImagePaths(false).then(() => {
+        console.log('Image paths refreshed successfully');
+        closeInitializingPopup();
+        
+        setTimeout(() => {
+            showRestoringSessionPopup();
+        }, 300);
+    }).catch(error => {
+        console.error('Error refreshing image paths:', error);
         closeInitializingPopup();
         setTimeout(() => {
-            // Ensure DOM is ready and CONFIG is available
-            if (window.domElements && window.domElements.yearDropdown && typeof CONFIG !== 'undefined' && CONFIG.years) {
-                initializeYearDropdownGlobal();
+            showRestoringSessionPopup();
+        }, 300);
+    });
+}
+
+function showRestoringSessionPopup() {
+    console.log('Showing restoring session popup');
+    const state = window.appState;
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'popup-overlay initializing-overlay';
+    overlay.innerHTML = `
+        <div class="initializing-popup">
+            <div class="initializing-spinner"></div>
+            <h3>Restoring Session</h3>
+            <p>Loading your previous curriculum...</p>
+            <div class="initializing-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="restore-progress-fill"></div>
+                </div>
+                <div class="progress-text" id="restore-progress-text">Loading...</div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    const progressFill = document.getElementById('restore-progress-fill');
+    const progressText = document.getElementById('restore-progress-text');
+    let progress = 0;
+    
+    const progressInterval = setInterval(() => {
+        progress += 20;
+        if (progressFill) progressFill.style.width = `${Math.min(progress, 90)}%`;
+        if (progressText) progressText.textContent = `${Math.min(progress, 90)}%`;
+        
+        if (progress >= 90) {
+            clearInterval(progressInterval);
+        }
+    }, 150);
+    
+    setTimeout(() => {
+        clearInterval(progressInterval);
+        if (progressFill) progressFill.style.width = '100%';
+        if (progressText) progressText.textContent = '100%';
+        
+        setTimeout(() => {
+            closeInitializingPopup();
+            if (state.lastVisited && state.lastVisited.year && state.lastVisited.stream && state.lastVisited.semester) {
+                console.log('Starting session restoration');
+                restoreSession(state.lastVisited);
             } else {
-                console.error('DOM elements or CONFIG not ready, retrying...');
-                setTimeout(() => {
-                    initializeYearDropdownGlobal();
-                }, 500);
+                console.log('No session to restore, initializing year dropdown');
+                initializeYearDropdownGlobal();
             }
         }, 300);
     }, 1000);
@@ -838,6 +880,44 @@ function checkAdditionalResourcesExist(path) {
             resolve([]);
         });
     });
+}
+
+function getCachedImagePaths() {
+    try {
+        const cached = localStorage.getItem(IMAGE_PATHS_CACHE_KEY);
+        if (cached) {
+            const pathCache = JSON.parse(cached);
+            if (pathCache.version === APP_VERSION && pathCache.paths) {
+                return pathCache.paths;
+            }
+        }
+    } catch (error) {
+        console.error('Error reading cached paths:', error);
+    }
+    return null;
+}
+
+function getAvailablePartsFromCache(year, stream, semester, cachedPaths) {
+    let totalParts = 0;
+    let hasSingleImage = false;
+    
+    const mainImagePath = CONFIG.getImagePath(year, stream, semester);
+    const hasMainImage = cachedPaths.includes(mainImagePath);
+    
+    if (hasMainImage) {
+        totalParts = 1;
+        hasSingleImage = true;
+    }
+    
+    for (let i = 1; i <= 10; i++) {
+        const partPath = CONFIG.getImagePath(year, stream, semester, i);
+        if (cachedPaths.includes(partPath)) {
+            totalParts = i;
+            hasSingleImage = false;
+        }
+    }
+    
+    return { totalParts, hasSingleImage };
 }
 
 function isFirstVisit() {
@@ -1545,17 +1625,14 @@ function initializeSemesterDropdownGlobal() {
         return;
     }
     
-    // Clear any existing options and event listeners
     dom.semesterDropdown.innerHTML = '';
     dom.semesterDropdown.onchange = null;
     
-    // Add default option
     const defaultOption = document.createElement('option');
     defaultOption.value = '';
     defaultOption.textContent = 'Select Semester';
     dom.semesterDropdown.appendChild(defaultOption);
     
-    // Add semester options
     CONFIG.semesters.forEach(semester => {
         const option = document.createElement('option');
         option.value = semester;
@@ -1569,7 +1646,22 @@ function initializeSemesterDropdownGlobal() {
             state.currentPart = 1;
             state.viewingAdditional = false;
             
-            showLoadingGlobal("Preparing curriculum viewer...");
+            const cachedPaths = getCachedImagePaths();
+            if (cachedPaths) {
+                const availableParts = getAvailablePartsFromCache(
+                    state.currentYear,
+                    state.currentStream,
+                    state.currentSemester,
+                    cachedPaths
+                );
+                
+                if (availableParts.totalParts === 0) {
+                    showNoImagesPopup();
+                    return;
+                }
+            }
+            
+            showLoadingGlobal("Loading curriculum image...");
             
             setTimeout(() => {
                 dom.selectionContainer.classList.add('hidden');
@@ -1694,7 +1786,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('First time or no previous session, showing initializing popup');
     setTimeout(() => {
         showInitializingPopup();
-    }, 100); // Small delay to ensure DOM is fully ready
+    }, 100); 
 
     function setupCoreEventListeners() {
         document.querySelectorAll('.back-button').forEach(btn => {
@@ -1979,9 +2071,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.currentPart = 1;
                 state.viewingAdditional = false;
                 
-                showLoadingGlobal("Preparing curriculum viewer...");
+                const cachedPaths = getCachedImagePaths();
+                if (cachedPaths) {
+                    const availableParts = getAvailablePartsFromCache(
+                        state.currentYear,
+                        state.currentStream,
+                        state.currentSemester,
+                        cachedPaths
+                    );
+                    
+                    if (availableParts.totalParts === 0) {
+                        showNoImagesPopup();
+                        return;
+                    }
+                }
+                
+                showLoadingGlobal("Loading curriculum image...");
                 
                 setTimeout(() => {
+                    selectionContainer.classList.add('hidden');
+                    viewerContainer.classList.remove('hidden');
+                    
                     loadCurriculumImage();
                     
                     setTimeout(() => {
@@ -2004,6 +2114,30 @@ document.addEventListener('DOMContentLoaded', () => {
             semester: state.currentSemester
         });
         
+        const cachedPaths = getCachedImagePaths();
+        if (cachedPaths && cachedPaths.length > 0) {
+            console.log('Using cached paths for fast check');
+            const availableParts = getAvailablePartsFromCache(
+                state.currentYear,
+                state.currentStream,
+                state.currentSemester,
+                cachedPaths
+            );
+            
+            if (availableParts.totalParts > 0) {
+                state.totalParts = availableParts.totalParts;
+                state.hasSingleImage = availableParts.hasSingleImage;
+                
+                loadImageWithPart();
+                updateImageNavigationButtons();
+                updateHeader();
+                saveLastVisitedState();
+                setupViewerEventListeners();
+                return;
+            }
+        }
+        
+        console.log('Cache miss, performing live image check');
         state.totalParts = 0;
         
         const checkPartPromises = [];
@@ -2055,23 +2189,21 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             if (state.totalParts > 0) {
-                animateHide(selectionContainer, () => {
-                    selectionContainer.classList.add('hidden');
-                    viewerContainer.classList.remove('hidden');
-                    animateShow(viewerContainer);
-                });
                 loadImageWithPart();
                 updateImageNavigationButtons();
                 updateHeader();
                 saveLastVisitedState();
                 
-                hideLoadingGlobal();
                 
                 setupViewerEventListeners();
             } else {
                 hideLoadingGlobal();
                 showNoImagesPopup();
             }
+        }).catch(error => {
+            console.error('Error during image check:', error);
+            hideLoadingGlobal();
+            showErrorGlobal('Failed to load curriculum images. Please try again.');
         });
     }
 
@@ -2260,11 +2392,17 @@ document.addEventListener('DOMContentLoaded', () => {
         caches.open(`curriculum-images-${APP_VERSION}`).then(cache => {
             cache.match(src).then(response => {
                 if (response) {
-                    hideLoading();
+                    if (!loadingContainer.classList.contains('hidden')) {
+                        hideLoadingGlobal();
+                    }
                     curriculumImage.src = src;
                     updateHeader();
                 } else {
-                    showLoading();
+                    const globalLoadingActive = !loadingContainer.classList.contains('hidden');
+                    
+                    if (!globalLoadingActive) {
+                        showLoading();
+                    }
                     
                     const xhr = new XMLHttpRequest();
                     xhr.open('GET', src, true);
@@ -2280,7 +2418,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     xhr.onload = function() {
                         if (xhr.status === 200) {
-                            hideLoading();
+                            if (globalLoadingActive) {
+                                hideLoadingGlobal();
+                            } else {
+                                hideLoading();
+                            }
                             
                             if (!state.viewingAdditional) {
                                 clearPreviousCachedImages(src);
@@ -2299,11 +2441,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                 URL.revokeObjectURL(objectURL);
                             };
                         } else {
+                            if (globalLoadingActive) {
+                                hideLoadingGlobal();
+                            } else {
+                                hideLoading();
+                            }
                             showError(`Failed to load image: ${xhr.status}`);
                         }
                     };
                     
                     xhr.onerror = function() {
+                        if (globalLoadingActive) {
+                            hideLoadingGlobal();
+                        } else {
+                            hideLoading();
+                        }
                         showError('Network error occurred when trying to load image');
                     };
                     
