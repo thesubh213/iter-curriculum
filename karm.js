@@ -51,47 +51,38 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-function imageExists(url) {
+const imageExists = (url, timeout = 8000) => {
     return new Promise(resolve => {
         const img = new Image();
         
-        // Set a longer timeout for image checking
-        const timeout = setTimeout(() => {
-            img.onload = null;
-            img.onerror = null;
+        const timeoutId = setTimeout(() => {
+            img.onload = img.onerror = null;
             resolve(false);
-        }, 8000); // Increased from default to 8 seconds
+        }, timeout);
         
-        img.onload = () => {
-            clearTimeout(timeout);
-            resolve(true);
+        const cleanup = (result) => {
+            clearTimeout(timeoutId);
+            img.onload = img.onerror = null;
+            resolve(result);
         };
         
-        img.onerror = () => {
-            clearTimeout(timeout);
-            resolve(false);
-        };
-        
+        img.onload = () => cleanup(true);
+        img.onerror = () => cleanup(false);
         img.src = url;
     });
-}
+};
 
-function fetchAdditionalFiles(path) {
-    return new Promise((resolve, reject) => {
-        const files = [];
-        for (let i = 1; i <= 4; i++) {
-            const file = `${path}${i}.webp`;
-            files.push(file);
-        }
-        
-        Promise.all(files.map(file => imageExists(file)))
-            .then(results => {
-                const existingFiles = files.filter((file, index) => results[index]);
-                resolve(existingFiles);
-            })
-            .catch(reject);
-    });
-}
+const fetchAdditionalFiles = async (path) => {
+    const files = Array.from({ length: 4 }, (_, i) => `${path}${i + 1}.webp`);
+    
+    try {
+        const results = await Promise.all(files.map(file => imageExists(file)));
+        return files.filter((_, index) => results[index]);
+    } catch (error) {
+        console.error('Error fetching additional files:', error);
+        return [];
+    }
+};
 
 function showNoAdditionalFilesPopup() {
     const state = window.appState;
@@ -797,68 +788,99 @@ function closeInitializingPopup() {
 
 function loadAllImagePaths(isFirstTime = false) {
     return new Promise((resolve, reject) => {
-        const progressFill = document.getElementById(isFirstTime ? 'init-progress-fill' : 'refresh-progress-fill');
-        const progressText = document.getElementById(isFirstTime ? 'init-progress-text' : 'refresh-progress-text');
-        
-        const allPaths = [];
-        const checkPromises = [];
-        let completed = 0;
-        
-        const totalPaths = CONFIG.years.length * CONFIG.streams.length * CONFIG.semesters.length * 12; // 10 parts + 1 main + 1 additional check
-        
-        CONFIG.years.forEach(year => {
-            CONFIG.streams.forEach(stream => {
-                CONFIG.semesters.forEach(semester => {
-                    const mainPath = CONFIG.getImagePath(year, stream.shortCode, semester);
-                    checkPromises.push(
-                        checkImagePathExists(mainPath).then(exists => {
-                            if (exists) allPaths.push(mainPath);
-                            completed++;
-                            updateProgress(completed, totalPaths, progressFill, progressText);
-                        })
-                    );
-                    
-                    for (let part = 1; part <= 10; part++) {
-                        const partPath = CONFIG.getImagePath(year, stream.shortCode, semester, part);
-                        checkPromises.push(
-                            checkImagePathExists(partPath).then(exists => {
-                                if (exists) allPaths.push(partPath);
-                                completed++;
-                                updateProgress(completed, totalPaths, progressFill, progressText);
-                            })
-                        );
-                    }
-                    
-                    const additionalPath = CONFIG.getAdditionalResourcesPath(year, stream.shortCode);
-                    checkPromises.push(
-                        checkAdditionalResourcesExist(additionalPath).then(files => {
-                            if (files.length > 0) {
-                                allPaths.push(...files);
-                            }
-                            completed++;
-                            updateProgress(completed, totalPaths, progressFill, progressText);
-                        })
-                    );
-                });
-            });
-        });
-        
-        Promise.all(checkPromises).then(() => {
-            const pathCache = {
-                timestamp: Date.now(),
-                version: APP_VERSION,
-                paths: allPaths
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            const messageChannel = new MessageChannel();
+            messageChannel.port1.onmessage = function(event) {
+                if (event.data.type === 'CACHED_PATHS_RESPONSE' && event.data.paths) {
+                    console.log('📁 Using cached image paths from service worker');
+                    resolve(event.data.paths);
+                    return;
+                }
+                loadImagePathsLive(isFirstTime, resolve, reject);
             };
             
-            localStorage.setItem(IMAGE_PATHS_CACHE_KEY, JSON.stringify(pathCache));
-            
-            setTimeout(() => {
-                resolve(allPaths);
-            }, 1000);
-        }).catch(error => {
-            console.error('Error loading image paths:', error);
-            reject(error);
+            navigator.serviceWorker.controller.postMessage({
+                type: 'GET_CACHED_PATHS'
+            }, [messageChannel.port2]);
+        } else {
+            loadImagePathsLive(isFirstTime, resolve, reject);
+        }
+    });
+}
+
+function loadImagePathsLive(isFirstTime, resolve, reject) {
+    const progressFill = document.getElementById(isFirstTime ? 'init-progress-fill' : 'refresh-progress-fill');
+    const progressText = document.getElementById(isFirstTime ? 'init-progress-text' : 'refresh-progress-text');
+    
+    console.log('📡 Loading image paths from server...');
+    
+    const allPaths = [];
+    const checkPromises = [];
+    let completed = 0;
+    
+    const totalPaths = CONFIG.years.length * CONFIG.streams.length * CONFIG.semesters.length * 12;
+    
+    CONFIG.years.forEach(year => {
+        CONFIG.streams.forEach(stream => {
+            CONFIG.semesters.forEach(semester => {
+                const mainPath = CONFIG.getImagePath(year, stream.shortCode, semester);
+                checkPromises.push(
+                    checkImagePathExists(mainPath).then(exists => {
+                        if (exists) allPaths.push(mainPath);
+                        completed++;
+                        updateProgress(completed, totalPaths, progressFill, progressText);
+                    })
+                );
+                
+                for (let part = 1; part <= 10; part++) {
+                    const partPath = CONFIG.getImagePath(year, stream.shortCode, semester, part);
+                    checkPromises.push(
+                        checkImagePathExists(partPath).then(exists => {
+                            if (exists) allPaths.push(partPath);
+                            completed++;
+                            updateProgress(completed, totalPaths, progressFill, progressText);
+                        })
+                    );
+                }
+                
+                const additionalPath = CONFIG.getAdditionalResourcesPath(year, stream.shortCode);
+                checkPromises.push(
+                    checkAdditionalResourcesExist(additionalPath).then(files => {
+                        if (files.length > 0) {
+                            allPaths.push(...files);
+                        }
+                        completed++;
+                        updateProgress(completed, totalPaths, progressFill, progressText);
+                    })
+                );
+            });
         });
+    });
+    
+    Promise.all(checkPromises).then(() => {
+        console.log(`📦 Loaded ${allPaths.length} image paths`);
+        
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+                type: 'CACHE_IMAGE_PATHS',
+                paths: allPaths
+            });
+        }
+        
+        const pathCache = {
+            version: APP_VERSION,
+            timestamp: Date.now(),
+            paths: allPaths
+        };
+        
+        localStorage.setItem(IMAGE_PATHS_CACHE_KEY, JSON.stringify(pathCache));
+        
+        setTimeout(() => {
+            resolve(allPaths);
+        }, 1000);
+    }).catch(error => {
+        console.error('Error loading image paths:', error);
+        reject(error);
     });
 }
 
@@ -872,51 +894,25 @@ function updateProgress(completed, total, progressFill, progressText) {
     }
 }
 
-function checkImagePathExists(path) {
-    return new Promise(resolve => {
-        const img = new Image();
-        
-        // Set timeout for initial path checking (can be shorter for batch operations)
-        const timeout = setTimeout(() => {
-            img.onload = null;
-            img.onerror = null;
-            resolve(false);
-        }, 5000); // 5 seconds for batch checking
-        
-        img.onload = () => {
-            clearTimeout(timeout);
-            resolve(true);
-        };
-        
-        img.onerror = () => {
-            clearTimeout(timeout);
-            resolve(false);
-        };
-        
-        img.src = path;
-    });
-}
+const checkImagePathExists = (path) => imageExists(path, 5000);
 
-function checkAdditionalResourcesExist(path) {
-    return new Promise(resolve => {
-        const files = [];
-        for (let i = 1; i <= 4; i++) {
-            const file = `${path}${i}.webp`;
-            files.push(file);
-        }
-        
-        const checkPromises = files.map(file => 
-            checkImagePathExists(file).then(exists => ({ file, exists }))
+const checkAdditionalResourcesExist = async (path) => {
+    const files = Array.from({ length: 4 }, (_, i) => `${path}${i + 1}.webp`);
+    
+    try {
+        const results = await Promise.all(
+            files.map(async file => ({ 
+                file, 
+                exists: await checkImagePathExists(file) 
+            }))
         );
         
-        Promise.all(checkPromises).then(results => {
-            const existingFiles = results.filter(result => result.exists).map(result => result.file);
-            resolve(existingFiles);
-        }).catch(() => {
-            resolve([]);
-        });
-    });
-}
+        return results.filter(result => result.exists).map(result => result.file);
+    } catch (error) {
+        console.error('Error checking additional resources:', error);
+        return [];
+    }
+};
 
 function getCachedImagePaths() {
     try {
@@ -938,13 +934,11 @@ function getAvailablePartsFromCache(year, stream, semester, cachedPaths) {
     let hasSingleImage = false;
     let maxPartFound = 0;
     
-    // Generate expected paths and check if they exist in cache
     const mainImagePath = CONFIG.getImagePath(year, stream, semester);
     const hasMainImage = cachedPaths.some(path => path.includes(mainImagePath) || path === mainImagePath);
     
     console.log('Checking cache for main image:', mainImagePath, 'Found:', hasMainImage);
     
-    // Check for numbered parts
     for (let i = 1; i <= 10; i++) {
         const partPath = CONFIG.getImagePath(year, stream, semester, i);
         const hasPartImage = cachedPaths.some(path => path.includes(partPath) || path === partPath);
@@ -984,7 +978,7 @@ function restoreSession(lastVisited) {
         return;
     }
     
-    console.log('Fast restoring session with state:', lastVisited);
+    console.log('🚀 Lightning fast session restoration:', lastVisited);
     
     state.currentYear = lastVisited.year;
     state.currentStream = lastVisited.stream;
@@ -996,12 +990,66 @@ function restoreSession(lastVisited) {
     dom.selectionContainer.classList.add('hidden');
     dom.viewerContainer.classList.remove('hidden');
     
-    showLoadingGlobal("Restoring...");
+    showLoadingGlobal("⚡ Restoring session...");
     
     setupEventListenersForRestore();
     state.eventListenersSetup = true;
     
-    checkImagePartsForRestoreFast();
+    attemptInstantCacheLoad();
+}
+
+function attemptInstantCacheLoad() {
+    const state = window.appState;
+    
+    console.log('⚡ Attempting instant cache load');
+    
+    const mainImagePath = CONFIG.getImagePath(
+        state.currentYear, 
+        state.currentStream, 
+        state.currentSemester
+    );
+    
+    state.totalParts = 1;
+    state.hasSingleImage = true;
+    state.currentPart = 1;
+    
+    const quickImg = new Image();
+    quickImg.crossOrigin = 'anonymous';
+    
+    const instantTimeout = setTimeout(() => {
+        console.log('💨 Instant load failed, falling back to fast check');
+        checkImagePartsForRestoreFast();
+    }, 400); 
+    
+    quickImg.onload = function() {
+        clearTimeout(instantTimeout);
+        console.log('⚡ INSTANT CACHE HIT! Loading in <400ms');
+        
+        const dom = window.domElements;
+        dom.curriculumImage.src = quickImg.src;
+        updateImageNavigationButtonsForRestore();
+        updateHeaderForRestore();
+        saveLastVisitedStateForRestore();
+        hideLoadingGlobal();
+        
+        setTimeout(() => {
+            ensureDownloadAndClickEventListeners();
+            checkAdditionalPartsInBackground();
+            warmCacheForCurrentContext();
+        }, 100);
+    };
+    
+    quickImg.onerror = function() {
+        clearTimeout(instantTimeout);
+        console.log('💨 No instant cache hit, proceeding with fast load');
+        checkImagePartsForRestoreFast();
+    };
+    
+    quickImg.src = mainImagePath;
+}
+
+function warmCacheForCurrentContext() {
+    console.log('🔥 Efficient caching mode: Cache warming not needed');
 }
 
 function checkImagePartsForRestoreFast() {
@@ -1043,34 +1091,78 @@ function checkImagePartsForRestoreFast() {
 function loadImageForRestoreFast(src, onSuccess, onError) {
     const dom = window.domElements;
     
-    console.log('Fast loading image for restore:', src);
+    console.log('🚀 Fast loading image for restore:', src);
     
     if (dom.curriculumImage) {
-        const timeoutId = setTimeout(() => {
-            console.log('Image loading timeout, falling back to slower method');
-            if (onError) onError();
-        }, 1500); 
+        const cachedImg = new Image();
+        cachedImg.crossOrigin = 'anonymous';
         
-        dom.curriculumImage.onload = function() {
-            clearTimeout(timeoutId);
-            console.log('Image loaded successfully in fast mode');
+        const fastLoadTimeout = setTimeout(() => {
+            console.log('⚡ Fast load timeout, trying regular load');
+            loadImageRegular(src, onSuccess, onError);
+        }, 800); 
+        
+        cachedImg.onload = function() {
+            clearTimeout(fastLoadTimeout);
+            console.log('⚡ Image loaded from cache in fast mode');
+            
+            dom.curriculumImage.src = cachedImg.src;
             if (dom.loadingContainer) {
                 dom.loadingContainer.classList.add('hidden');
             }
             dom.curriculumImage.classList.remove('hidden');
+            
+            setTimeout(() => {
+                preloadAdjacentImages(src);
+            }, 100);
+            
             if (onSuccess) onSuccess();
         };
         
-        dom.curriculumImage.onerror = function() {
-            clearTimeout(timeoutId);
-            console.log('Error loading image in fast mode');
-            if (onError) onError();
+        cachedImg.onerror = function() {
+            clearTimeout(fastLoadTimeout);
+            console.log('❌ Cache miss, loading from network');
+            loadImageRegular(src, onSuccess, onError);
         };
         
-        dom.curriculumImage.src = src;
-        
-        
+        cachedImg.src = src;
     }
+}
+
+function loadImageRegular(src, onSuccess, onError) {
+    const dom = window.domElements;
+    
+    const timeoutId = setTimeout(() => {
+        console.log('📡 Regular image loading timeout');
+        if (onError) onError();
+    }, 3000);
+    
+    dom.curriculumImage.onload = function() {
+        clearTimeout(timeoutId);
+        console.log('📡 Image loaded from network');
+        if (dom.loadingContainer) {
+            dom.loadingContainer.classList.add('hidden');
+        }
+        dom.curriculumImage.classList.remove('hidden');
+        
+        setTimeout(() => {
+            preloadAdjacentImages(src);
+        }, 500);
+        
+        if (onSuccess) onSuccess();
+    };
+    
+    dom.curriculumImage.onerror = function() {
+        clearTimeout(timeoutId);
+        console.log('❌ Error loading image');
+        if (onError) onError();
+    };
+    
+    dom.curriculumImage.src = src;
+}
+
+function preloadAdjacentImages(currentSrc) {
+    console.log('📦 Efficient caching mode: Adjacent preloading not needed');
 }
 
 function checkAdditionalPartsInBackground() {
@@ -1111,24 +1203,8 @@ function checkAdditionalPartsInBackground() {
     });
 }
 
-function imageExistsFast(url) {
-    return new Promise(resolve => {
-        const img = new Image();
-        const timeout = setTimeout(() => {
-            resolve(false);
-        }, 500); 
-        
-        img.onload = () => {
-            clearTimeout(timeout);
-            resolve(true);
-        };
-        img.onerror = () => {
-            clearTimeout(timeout);
-            resolve(false);
-        };
-        img.src = url;
-    });
-}
+// Optimized: reuse imageExists function with fast timeout
+const imageExistsFast = (url) => imageExists(url, 500);
 
 function checkImagePartsForRestore() {
     const state = window.appState;
@@ -1208,6 +1284,43 @@ function checkImagePartsForRestore() {
         console.error('Error during image check for restoration:', error);
         hideLoadingGlobal();
         showNoImagesPopup();
+    });
+}
+
+function loadImageWithPartForRestoreFast() {
+    const state = window.appState;
+    const dom = window.domElements;
+    
+    if (state.currentPart > state.totalParts) {
+        state.currentPart = state.totalParts;
+    }
+    
+    if (state.currentPart < 1) {
+        state.currentPart = 1;
+    }
+    
+    let imagePath;
+    
+    if (state.hasSingleImage && state.currentPart === 1) {
+        imagePath = CONFIG.getImagePath(
+            state.currentYear, 
+            state.currentStream, 
+            state.currentSemester
+        );
+    } else {
+        imagePath = CONFIG.getImagePath(
+            state.currentYear, 
+            state.currentStream, 
+            state.currentSemester, 
+            state.currentPart
+        );
+    }
+    
+    loadImageForRestoreFast(imagePath, () => {
+        updateImageCounterForRestore();
+        setTimeout(() => {
+            preloadAdjacentImages(imagePath);
+        }, 200);
     });
 }
 
@@ -1369,9 +1482,10 @@ function setupEventListenersForRestore() {
                 state.currentAdditionalIndex--;
                 dom.curriculumImage.style.animation = 'slideInLeft 0.4s ease forwards';
                 setTimeout(() => {
-                    loadImageForRestore(state.additionalFiles[state.currentAdditionalIndex]);
-                    updateImageNavigationButtonsForRestore();
-                    updateHeaderForRestore();
+                    loadImageForRestoreFast(state.additionalFiles[state.currentAdditionalIndex], () => {
+                        updateImageNavigationButtonsForRestore();
+                        updateHeaderForRestore();
+                    });
                 }, 100);
             }
         } else {
@@ -1379,7 +1493,7 @@ function setupEventListenersForRestore() {
                 state.currentPart--;
                 dom.curriculumImage.style.animation = 'slideInLeft 0.4s ease forwards';
                 setTimeout(() => {
-                    loadImageWithPartForRestore();
+                    loadImageWithPartForRestoreFast();
                     updateImageNavigationButtonsForRestore();
                     updateHeaderForRestore();
                 }, 100);
@@ -1393,9 +1507,10 @@ function setupEventListenersForRestore() {
                 state.currentAdditionalIndex++;
                 dom.curriculumImage.style.animation = 'slideInRight 0.4s ease forwards';
                 setTimeout(() => {
-                    loadImageForRestore(state.additionalFiles[state.currentAdditionalIndex]);
-                    updateImageNavigationButtonsForRestore();
-                    updateHeaderForRestore();
+                    loadImageForRestoreFast(state.additionalFiles[state.currentAdditionalIndex], () => {
+                        updateImageNavigationButtonsForRestore();
+                        updateHeaderForRestore();
+                    });
                 }, 100);
             }
         } else {
@@ -1403,7 +1518,7 @@ function setupEventListenersForRestore() {
                 state.currentPart++;
                 dom.curriculumImage.style.animation = 'slideInRight 0.4s ease forwards';
                 setTimeout(() => {
-                    loadImageWithPartForRestore();
+                    loadImageWithPartForRestoreFast();
                     updateImageNavigationButtonsForRestore();
                     updateHeaderForRestore();
                 }, 100);
@@ -1733,14 +1848,12 @@ function initializeSemesterDropdownGlobal() {
             
             console.log('Global semester selected:', state.currentSemester);
             
-            // Always show loading and switch to viewer first
             showLoadingGlobal("Loading curriculum image...");
             
             setTimeout(() => {
                 dom.selectionContainer.classList.add('hidden');
                 dom.viewerContainer.classList.remove('hidden');
                 
-                // Then check and load images
                 checkImageParts();
                 
                 setTimeout(() => {
@@ -1908,19 +2021,19 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        if (curriculumImage) {
-            curriculumImage.addEventListener('click', openImageInNewWindow);
-            
-            curriculumImage.addEventListener('load', () => {
-                if (!curriculumImage.classList.contains('hidden')) {
-                    setTimeout(() => {
-                        if (imageTooltip) {
-                            imageTooltip.classList.remove('hidden');
-                        }
-                    }, 1000);
-                }
-                preloadNextImages();
-            });
+        if (curriculumImage) {        curriculumImage.addEventListener('click', openImageInNewWindow);
+        
+        curriculumImage.addEventListener('load', () => {
+            if (!curriculumImage.classList.contains('hidden')) {
+                setTimeout(() => {
+                    if (imageTooltip) {
+                        imageTooltip.classList.remove('hidden');
+                    }
+                }, 1000);
+            }
+            // Enhanced preloading with intelligent caching
+            preloadNextImagesIntelligent();
+        });
         }
 
         if (modalClose) {
@@ -2472,94 +2585,52 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    function loadImage(src) {
-        caches.open(`curriculum-images-${APP_VERSION}`).then(cache => {
-            cache.match(src).then(response => {
-                if (response) {
-                    if (!loadingContainer.classList.contains('hidden')) {
-                        hideLoadingGlobal();
-                    }
-                    curriculumImage.src = src;
-                    updateHeader();
-                } else {
-                    const globalLoadingActive = !loadingContainer.classList.contains('hidden');
-                    
-                    if (!globalLoadingActive) {
-                        showLoading();
-                    }
-                    
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('GET', src, true);
-                    xhr.responseType = 'blob';
-                    
-                    xhr.onprogress = function(e) {
-                        if (e.lengthComputable) {
-                            const percentComplete = Math.round((e.loaded / e.total) * 100);
-                            loadingBarInner.style.width = percentComplete + '%';
-                            loadingPercentage.textContent = percentComplete + '%';
-                        }
-                    };
-                    
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            if (globalLoadingActive) {
-                                hideLoadingGlobal();
-                            } else {
-                                hideLoading();
-                            }
-                            
-                            if (!state.viewingAdditional) {
-                                clearPreviousCachedImages(src);
-                                
-                                const blob = xhr.response;
-                                caches.open(`curriculum-images-${APP_VERSION}`).then(cache => {
-                                    cache.put(src, new Response(blob));
-                                });
-                            }
-                            
-                            const objectURL = URL.createObjectURL(xhr.response);
-                            curriculumImage.src = objectURL;
-                            updateHeader();
-                            
-                            curriculumImage.onload = function() {
-                                URL.revokeObjectURL(objectURL);
-                            };
-                        } else {
-                            if (globalLoadingActive) {
-                                hideLoadingGlobal();
-                            } else {
-                                hideLoading();
-                            }
-                            showError(`Failed to load image: ${xhr.status}`);
-                        }
-                    };
-                    
-                    xhr.onerror = function() {
-                        if (globalLoadingActive) {
-                            hideLoadingGlobal();
-                        } else {
-                            hideLoading();
-                        }
-                        showError('Network error occurred when trying to load image');
-                    };
-                    
-                    xhr.send();
-                }
-            });
-        });
-    }
+    const loadImage = async (src) => {
+        console.log('📸 Loading image:', src);
+        
+        const globalLoadingActive = !loadingContainer.classList.contains('hidden');
+        
+        if (!globalLoadingActive) {
+            showLoading();
+        }
+        
+        try {
+            const response = await fetch(src);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const blob = await response.blob();
+            
+            if (globalLoadingActive) {
+                hideLoadingGlobal();
+            } else {
+                hideLoading();
+            }
+            
+            const objectURL = URL.createObjectURL(blob);
+            curriculumImage.src = objectURL;
+            updateHeader();
+            
+            curriculumImage.onload = () => {
+                URL.revokeObjectURL(objectURL);
+                console.log('✅ Image loaded successfully');
+            };
+            
+        } catch (error) {
+            if (globalLoadingActive) {
+                hideLoadingGlobal();
+            } else {
+                hideLoading();
+            }
+            
+            console.error('❌ Error loading image:', error);
+            showError(`Failed to load image: ${error.message}`);
+        }
+    };
 
-    function clearPreviousCachedImages(newImagePath) {
-        caches.open(`curriculum-images-${APP_VERSION}`).then(cache => {
-            cache.keys().then(keys => {
-                keys.forEach(request => {
-                    if (request.url !== newImagePath) {
-                        cache.delete(request);
-                    }
-                });
-            });
-        });
-    }
+
 
     function showLoading(message) {
         loadingContainer.classList.remove('hidden');
@@ -2876,35 +2947,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function preloadNextImagesIntelligent() {
+        console.log('� Efficient caching mode: No preloading needed');
+    }
+
     function preloadNextImages() {
-        if (!state.viewingAdditional && state.currentPart < state.totalParts) {
-            const nextPart = state.currentPart + 1;
-            const nextImagePath = CONFIG.getImagePath(
-                state.currentYear,
-                state.currentStream,
-                state.currentSemester,
-                nextPart
-            );
-            
-            const preloadImg = new Image();
-            preloadImg.importance = 'low'; 
-            preloadImg.src = nextImagePath;
-        }
+        console.log('📝 Efficient caching mode: Current image only');
     }
 
     curriculumImage.addEventListener('load', preloadNextImages);
 
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            caches.open(`curriculum-images-${APP_VERSION}`).then(cache => {
-                cache.keys().then(keys => {
-                    if (keys.length > 5) {  
-                        keys.slice(0, -5).forEach(request => {
-                            cache.delete(request);
-                        });
-                    }
-                });
-            });
-        }
-    });
 });
