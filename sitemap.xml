@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>1.0</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.pages.dev/</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.5</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.9</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2023</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse&amp;semester=1</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <image:image>
+            <image:loc>https://iter-curriculum.netlify.app/images/2024/cse/cse-sem1.webp</image:loc>
+            <image:caption>CSE Semester 1 Curriculum - ITER 2024</image:caption>
+            <image:title>Computer Science Engineering Semester 1 Syllabus</image:title>
+        </image:image>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse&amp;semester=2</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <image:image>
+            <image:loc>https://iter-curriculum.netlify.app/images/2024/cse/cse-sem2-1.webp</image:loc>
+            <image:caption>CSE Semester 2 Curriculum - ITER 2024</image:caption>
+            <image:title>Computer Science Engineering Semester 2 Syllabus</image:title>
+        </image:image>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse&amp;semester=3</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse&amp;semester=4</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse&amp;semester=5</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse&amp;semester=6</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse&amp;semester=7</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse&amp;semester=8</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=ece</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=eee</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=me</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=ce</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=ce&amp;semester=1</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <image:image>
+            <image:loc>https://iter-curriculum.netlify.app/images/2024/ce/ce-sem1.webp</image:loc>
+            <image:caption>Civil Engineering Semester 1 Curriculum - ITER 2024</image:caption>
+            <image:title>Civil Engineering Semester 1 Syllabus</image:title>
+        </image:image>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=ce&amp;semester=2</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <image:image>
+            <image:loc>https://iter-curriculum.netlify.app/images/2024/ce/ce-sem2-1.webp</image:loc>
+            <image:caption>Civil Engineering Semester 2 Curriculum - ITER 2024</image:caption>
+            <image:title>Civil Engineering Semester 2 Syllabus</image:title>
+        </image:image>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=ce&amp;semester=3</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <image:image>
+            <image:loc>https://iter-curriculum.netlify.app/images/2024/ce/ce-sem3-1.webp</image:loc>
+            <image:caption>Civil Engineering Semester 3 Curriculum - ITER 2024</image:caption>
+            <image:title>Civil Engineering Semester 3 Syllabus</image:title>
+        </image:image>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=ce&amp;semester=4</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <image:image>
+            <image:loc>https://iter-curriculum.netlify.app/images/2024/ce/ce-sem4.webp</image:loc>
+            <image:caption>Civil Engineering Semester 4 Curriculum - ITER 2024</image:caption>
+            <image:title>Civil Engineering Semester 4 Syllabus</image:title>
+        </image:image>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=ce&amp;semester=5</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <image:image>
+            <image:loc>https://iter-curriculum.netlify.app/images/2024/ce/ce-sem5-1.webp</image:loc>
+            <image:caption>Civil Engineering Semester 5 Curriculum - ITER 2024</image:caption>
+            <image:title>Civil Engineering Semester 5 Syllabus</image:title>
+        </image:image>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=ce&amp;semester=6</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <image:image>
+            <image:loc>https://iter-curriculum.netlify.app/images/2024/ce/ce-sem6-1.webp</image:loc>
+            <image:caption>Civil Engineering Semester 6 Curriculum - ITER 2024</image:caption>
+            <image:title>Civil Engineering Semester 6 Syllabus</image:title>
+        </image:image>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=ce&amp;semester=7</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <image:image>
+            <image:loc>https://iter-curriculum.netlify.app/images/2024/ce/ce-sem7.webp</image:loc>
+            <image:caption>Civil Engineering Semester 7 Curriculum - ITER 2024</image:caption>
+            <image:title>Civil Engineering Semester 7 Syllabus</image:title>
+        </image:image>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=ce&amp;semester=8</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <image:image>
+            <image:loc>https://iter-curriculum.netlify.app/images/2024/ce/ce-sem8.webp</image:loc>
+            <image:caption>Civil Engineering Semester 8 Curriculum - ITER 2024</image:caption>
+            <image:title>Civil Engineering Semester 8 Syllabus</image:title>
+        </image:image>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse-aiml</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse-ds</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse-cs</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cse-iot</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://iter-curriculum.netlify.app/?year=2024&amp;stream=cs-it</loc>
+        <lastmod>2025-01-04</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+</urlset>

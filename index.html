@@ -3,8 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="ITER Curriculum - View semester-wise curriculum for different engineering streams">
-    <title>ITER Curriculum</title>
+    
+    <title>ITER Curriculum Viewer - Engineering Syllabus & Academic Resources | SOA University</title>
+    <meta name="title" content="ITER Curriculum Viewer - Engineering Syllabus & Academic Resources | SOA University">
+    <meta name="description" content="Access comprehensive ITER curriculum, engineering syllabus, semester-wise course materials for CSE, ECE, EEE, ME, CE streams. Official academic resource portal for SOA University students.">
+    <meta name="keywords" content="ITER curriculum viewer, ITER syllabus, SOA university curriculum, engineering curriculum ITER, CSE curriculum ITER, ECE curriculum ITER, EEE curriculum ITER, mechanical engineering ITER, civil engineering ITER, ITER academic resources, semester wise curriculum, engineering course materials, SOA university syllabus, ITER course structure, engineering subjects ITER, ITER student portal, academic curriculum viewer, ITER education, technical education ITER">
+    
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://iter-curriculum.netlify.app/">
+    <meta property="og:title" content="ITER Curriculum Viewer - Engineering Syllabus & Academic Resources">
+    <meta property="og:description" content="Access comprehensive ITER curriculum, engineering syllabus, and semester-wise course materials for all engineering streams at SOA University.">
+    <meta property="og:image" content="https://iter-curriculum.netlify.app/images/og-image.png">
+    <meta property="og:site_name" content="ITER Curriculum Viewer">
+    <meta property="og:locale" content="en_US">
+    
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://iter-curriculum.netlify.app/">
+    <meta property="twitter:title" content="ITER Curriculum Viewer - Engineering Syllabus & Academic Resources">
+    <meta property="twitter:description" content="Access comprehensive ITER curriculum, engineering syllabus, and semester-wise course materials for all engineering streams at SOA University.">
+    <meta property="twitter:image" content="https://iter-curriculum.netlify.app/images/og-image.png">
+    
+    <meta name="author" content="ITER Curriculum Team">
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <meta name="language" content="English">
+    <meta name="revisit-after" content="7 days">
+    <meta name="rating" content="General">
+    <meta name="distribution" content="global">
+    <meta name="theme-color" content="#667eea">
+    <meta name="msapplication-TileColor" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ITER Curriculum">
+    
+    <script>
+        const hostname = window.location.hostname;
+        const isNetlify = hostname.includes('netlify.app');
+        const isCloudflare = hostname.includes('pages.dev');
+        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+        
+        const canonicalUrl = isLocal ? window.location.origin + '/' : 'https://iter-curriculum.netlify.app/';
+        
+        const canonicalLink = document.createElement('link');
+        canonicalLink.rel = 'canonical';
+        canonicalLink.href = canonicalUrl;
+        document.head.appendChild(canonicalLink);
+        
+        if (!isLocal) {
+            const alternateNetlify = document.createElement('link');
+            alternateNetlify.rel = 'alternate';
+            alternateNetlify.hreflang = 'en';
+            alternateNetlify.href = 'https://iter-curriculum.netlify.app/';
+            document.head.appendChild(alternateNetlify);
+            
+            const alternateCloudflare = document.createElement('link');
+            alternateCloudflare.rel = 'alternate';
+            alternateCloudflare.hreflang = 'en-backup';
+            alternateCloudflare.href = 'https://iter-curriculum.pages.dev/';
+            document.head.appendChild(alternateCloudflare);
+        }
+    </script>
+    
+    <link rel="canonical" href="https://iter-curriculum.netlify.app/">
+    <link rel="alternate" hreflang="en" href="https://iter-curriculum.netlify.app/">
+    <link rel="alternate" hreflang="en-backup" href="https://iter-curriculum.pages.dev/">
+    <link rel="alternate" hreflang="en-IN" href="https://iter-curriculum.netlify.app/">
+    
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "ITER Curriculum Viewer",
+      "description": "Comprehensive academic resource portal for ITER engineering students to access curriculum, syllabus, and course materials",
+      "url": "https://iter-curriculum.netlify.app/",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Any",
+      "publisher": {
+        "@type": "Organization",
+        "name": "ITER - Institute of Technical Education and Research",
+        "url": "https://www.soa.ac.in/iter"
+      },
+      "audience": {
+        "@type": "Audience",
+        "audienceType": "Engineering Students"
+      },
+      "educationalUse": "curriculum access",
+      "inLanguage": "en",
+      "isAccessibleForFree": true,
+      "keywords": "ITER curriculum, engineering syllabus, academic resources, SOA university"
+    }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -55,8 +142,22 @@
 </head>
 <body>
     <header id="main-header">
-        <h1>ITER Curriculum</h1>
+        <div class="header-brand">
+            <div class="header-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+                </svg>
+            </div>
+            <div class="header-text">
+                <h1>ITER Curriculum</h1>
+                <span class="header-subtitle">Academic Resource Portal</span>
+            </div>
+        </div>
         <div id="header-controls">
+            <div class="header-status">
+                <div class="status-indicator online"></div>
+                <span class="status-text">Online</span>
+            </div>
             <div id="connection-status" class="hidden">Offline</div>
         </div>
     </header>
@@ -191,8 +292,15 @@
     </div>
 
     <script src="config.js"></script>
+    <script src="seo-config.js"></script>
     <script src="karm.js"></script>
     <script>
+        // Initialize SEO Manager
+        const seoManager = new SEOManager();
+        
+        // Make SEO manager globally available
+        window.seoManager = seoManager;
+        
         window.addEventListener('load', () => {
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('service-worker.js')
@@ -207,7 +315,42 @@
     </script>
     
     <footer>
-        <p>&copy; 2025 ITER Curriculum Viewer | <a href="#" id="about-link">About</a></p>
+        <div class="footer-content">
+            <div class="footer-main">
+                <div class="footer-brand">
+                    <div class="footer-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+                        </svg>
+                    </div>
+                    <div class="footer-text">
+                        <span class="footer-title">ITER Curriculum</span>
+                        <span class="footer-description">Your academic companion</span>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <a href="#" id="about-link" class="footer-link">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        About
+                    </a>
+                    <a href="#" class="footer-link">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 19c-5 0-8-3-8-8s3-8 8-8 8 3 8 8-3 8-8 8zm0-15c-3.866 0-7 3.134-7 7s3.134 7 7 7 7-3.134 7-7-3.134-7-7-7z"></path>
+                            <path d="M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z"></path>
+                        </svg>
+                        Help
+                    </a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 ITER Curriculum Viewer. All rights reserved.</p>
+                <div class="footer-version">v2.0.0</div>
+            </div>
+        </div>
     </footer>
 </body>
 </html>

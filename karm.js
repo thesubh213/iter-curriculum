@@ -254,7 +254,10 @@ function checkImagePartsBeforeStateChange(previousState) {
     const dom = window.domElements;
     
     state.totalParts = 0;
+    state.hasSingleImage = false;
     const checkPartPromises = [];
+    let hasMainImage = false;
+    let maxPartFound = 0;
     
     const mainImagePath = CONFIG.getImagePath(
         state.currentYear, 
@@ -265,10 +268,7 @@ function checkImagePartsBeforeStateChange(previousState) {
     const mainImagePromise = imageExists(mainImagePath)
         .then(exists => {
             if (exists) {
-                state.totalParts = 1;
-                state.hasSingleImage = true;
-            } else {
-                state.hasSingleImage = false;
+                hasMainImage = true;
             }
         });
         
@@ -285,7 +285,7 @@ function checkImagePartsBeforeStateChange(previousState) {
         const partPromise = imageExists(imagePath)
             .then(exists => {
                 if (exists) {
-                    state.totalParts = i;
+                    maxPartFound = Math.max(maxPartFound, i);
                 }
             });
             
@@ -293,6 +293,14 @@ function checkImagePartsBeforeStateChange(previousState) {
     }
     
     Promise.all(checkPartPromises).then(() => {
+        if (maxPartFound > 0) {
+            state.totalParts = maxPartFound;
+            state.hasSingleImage = false;
+        } else if (hasMainImage) {
+            state.totalParts = 1;
+            state.hasSingleImage = true;
+        }
+        
         if (state.totalParts > 0) {
             if (typeof window.loadCurriculumImage === 'function') {
                 window.loadCurriculumImage();
@@ -900,21 +908,24 @@ function getCachedImagePaths() {
 function getAvailablePartsFromCache(year, stream, semester, cachedPaths) {
     let totalParts = 0;
     let hasSingleImage = false;
+    let maxPartFound = 0;
     
     const mainImagePath = CONFIG.getImagePath(year, stream, semester);
     const hasMainImage = cachedPaths.includes(mainImagePath);
     
-    if (hasMainImage) {
-        totalParts = 1;
-        hasSingleImage = true;
-    }
-    
     for (let i = 1; i <= 10; i++) {
         const partPath = CONFIG.getImagePath(year, stream, semester, i);
         if (cachedPaths.includes(partPath)) {
-            totalParts = i;
-            hasSingleImage = false;
+            maxPartFound = i;
         }
+    }
+    
+    if (maxPartFound > 0) {
+        totalParts = maxPartFound;
+        hasSingleImage = false;
+    } else if (hasMainImage) {
+        totalParts = 1;
+        hasSingleImage = true;
     }
     
     return { totalParts, hasSingleImage };
@@ -1085,7 +1096,10 @@ function checkImagePartsForRestore() {
     const dom = window.domElements;
     
     state.totalParts = 0;
+    state.hasSingleImage = false;
     const checkPartPromises = [];
+    let hasMainImage = false;
+    let maxPartFound = 0;
     
     const mainImagePath = CONFIG.getImagePath(
         state.currentYear, 
@@ -1096,10 +1110,7 @@ function checkImagePartsForRestore() {
     const mainImagePromise = imageExists(mainImagePath)
         .then(exists => {
             if (exists) {
-                state.totalParts = 1;
-                state.hasSingleImage = true;
-            } else {
-                state.hasSingleImage = false;
+                hasMainImage = true;
             }
         });
         
@@ -1116,7 +1127,7 @@ function checkImagePartsForRestore() {
         const partPromise = imageExists(imagePath)
             .then(exists => {
                 if (exists) {
-                    state.totalParts = i;
+                    maxPartFound = Math.max(maxPartFound, i);
                 }
             });
             
@@ -1124,7 +1135,20 @@ function checkImagePartsForRestore() {
     }
     
     Promise.all(checkPartPromises).then(() => {
-        console.log('Image check completed for restoration. Total parts:', state.totalParts);
+        if (maxPartFound > 0) {
+            state.totalParts = maxPartFound;
+            state.hasSingleImage = false;
+        } else if (hasMainImage) {
+            state.totalParts = 1;
+            state.hasSingleImage = true;
+        }
+        
+        console.log('Image check completed for restoration:', {
+            totalParts: state.totalParts,
+            hasSingleImage: state.hasSingleImage,
+            hasMainImage: hasMainImage,
+            maxPartFound: maxPartFound
+        });
         if (state.totalParts > 0) {
             loadImageWithPartForRestore();
             updateImageNavigationButtonsForRestore();
@@ -1255,6 +1279,28 @@ function updateHeaderForRestore() {
             <p><strong>Semester:</strong> ${state.currentSemester}</p>
             ${state.totalParts > 1 ? `<p><strong>Part:</strong> ${state.currentPart} of ${state.totalParts}</p>` : ''}
         `;
+        
+        if (window.seoManager && state.currentYear && state.currentStream && state.currentSemester) {
+            window.seoManager.initializePageSEO('viewer', {
+                year: state.currentYear,
+                stream: stream ? stream.name : state.currentStream,
+                semester: state.currentSemester
+            });
+            
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('year', state.currentYear);
+            newUrl.searchParams.set('stream', state.currentStream);
+            newUrl.searchParams.set('semester', state.currentSemester);
+            window.history.replaceState({}, '', newUrl);
+            
+            window.seoManager.updateCanonical(newUrl.toString());
+            
+            window.seoManager.trackPageView({
+                stream: state.currentStream,
+                semester: state.currentSemester,
+                year: state.currentYear
+            });
+        }
     }
 }
 
@@ -2139,8 +2185,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         console.log('Cache miss, performing live image check');
         state.totalParts = 0;
+        state.hasSingleImage = false;
         
         const checkPartPromises = [];
+        let hasMainImage = false;
+        let maxPartFound = 0;
         
         const mainImagePath = CONFIG.getImagePath(
             state.currentYear, 
@@ -2153,10 +2202,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mainImagePromise = imageExists(mainImagePath)
             .then(exists => {
                 if (exists) {
-                    state.totalParts = 1;
-                    state.hasSingleImage = true;
-                } else {
-                    state.hasSingleImage = false;
+                    hasMainImage = true;
                 }
             });
             
@@ -2173,7 +2219,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const partPromise = imageExists(imagePath)
                 .then(exists => {
                     if (exists) {
-                        state.totalParts = i;
+                        maxPartFound = Math.max(maxPartFound, i);
                     }
                 });
                 
@@ -2181,11 +2227,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         Promise.all(checkPartPromises).then(() => {
+            if (maxPartFound > 0) {
+                state.totalParts = maxPartFound;
+                state.hasSingleImage = false;
+            } else if (hasMainImage) {
+                state.totalParts = 1;
+                state.hasSingleImage = true;
+            }
+            
             console.log('Image check completed for:', {
                 year: state.currentYear,
                 stream: state.currentStream,
                 semester: state.currentSemester,
-                totalParts: state.totalParts
+                totalParts: state.totalParts,
+                hasSingleImage: state.hasSingleImage,
+                hasMainImage: hasMainImage,
+                maxPartFound: maxPartFound
             });
             
             if (state.totalParts > 0) {

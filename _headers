@@ -5,6 +5,16 @@
   X-XSS-Protection: 1; mode=block
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  X-Robots-Tag: index, follow
+
+# SEO headers for homepage
+/
+  Cache-Control: public, max-age=300, must-revalidate
+  Link: </sitemap.xml>; rel=sitemap; type=application/xml
+  Link: </sundarta.css>; rel=preload; as=style
+  Link: </config.js>; rel=preload; as=script
+  Link: </seo-config.js>; rel=preload; as=script
+  Link: </karm.js>; rel=preload; as=script
 
 # Cache headers for static assets
 *.css
@@ -37,14 +47,19 @@
 # HTML files - short cache with revalidation
 *.html
   Cache-Control: public, max-age=300, must-revalidate
-  
-/
-  Cache-Control: public, max-age=300, must-revalidate
 
 # Service Worker - no cache to ensure updates
 /service-worker.js
   Cache-Control: no-cache, no-store, must-revalidate
   
-# Manifest file - short cache
+# SEO files - moderate cache
 /manifest.json
   Cache-Control: public, max-age=3600, must-revalidate
+
+/sitemap.xml
+  Cache-Control: public, max-age=86400
+  Content-Type: application/xml
+
+/robots.txt
+  Cache-Control: public, max-age=86400
+  Content-Type: text/plain

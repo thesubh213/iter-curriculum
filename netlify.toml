@@ -1,0 +1,83 @@
+# Netlify configuration for ITER Curriculum Viewer
+
+[build]
+  publish = "."
+  command = ""
+
+# Headers for performance and security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), payment=(), usb=(), interest-cohort=()"
+
+# Cache headers for assets
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# SEO headers for main pages
+[[headers]]
+  for = "/"
+  [headers.values]
+    X-Robots-Tag = "index, follow"
+    Link = "</sitemap.xml>; rel=sitemap; type=application/xml"
+
+# Redirect rules for SEO
+[[redirects]]
+  from = "/curriculum"
+  to = "/"
+  status = 301
+
+[[redirects]]
+  from = "/syllabus"
+  to = "/"
+  status = 301
+
+[[redirects]]
+  from = "/iter"
+  to = "/"
+  status = 301
+
+# Preload critical resources
+[[headers]]
+  for = "/"
+  [headers.values]
+    Link = '''
+    </sundarta.css>; rel=preload; as=style,
+    </config.js>; rel=preload; as=script,
+    </seo-config.js>; rel=preload; as=script,
+    </karm.js>; rel=preload; as=script
+    '''
+
+# Force HTTPS
+[[redirects]]
+  from = "http://iter-curriculum.netlify.app/*"
+  to = "https://iter-curriculum.netlify.app/:splat"
+  status = 301
+  force = true
+
+# 404 fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
