@@ -62,7 +62,6 @@ class CurriculumApp {
     }
 
     async cacheImagePathsInBackground() {
-        // Cache only paths, not actual images, in background after session restoration
         setTimeout(() => {
             this.cacheImagePaths();
         }, 100);
@@ -92,25 +91,45 @@ class CurriculumApp {
     }
 
     setupEventListeners() {
-        document.querySelectorAll('.option-card').forEach(card => {
+        const optionCards = document.querySelectorAll('.option-card');
+        console.log('Setting up event listeners for', optionCards.length, 'option cards');
+        
+        optionCards.forEach(card => {
             card.addEventListener('click', (e) => this.handleOptionSelect(e));
         });
 
-        document.getElementById('back-to-wizard').addEventListener('click', () => this.showFormWizard());
-        document.getElementById('zoom-in').addEventListener('click', () => this.zoomIn());
-        document.getElementById('zoom-out').addEventListener('click', () => this.zoomOut());
-        document.getElementById('reset-zoom').addEventListener('click', () => this.resetZoom());
-        document.getElementById('fullscreen-zoom').addEventListener('click', () => this.toggleFullscreen());
-        document.getElementById('download-image').addEventListener('click', () => this.downloadImage());
-        document.getElementById('prev-image').addEventListener('click', () => this.previousImage());
-        document.getElementById('next-image').addEventListener('click', () => this.nextImage());
-        document.getElementById('toggle-additional').addEventListener('click', () => this.toggleAdditionalPanel());
-        document.getElementById('close-additional').addEventListener('click', () => this.closeAdditionalPanel());
+        const backToWizardBtn = document.getElementById('back-to-wizard');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        const resetZoomBtn = document.getElementById('reset-zoom');
+        const fullscreenBtn = document.getElementById('fullscreen-zoom');
+        const downloadBtn = document.getElementById('download-image');
+        const prevBtn = document.getElementById('prev-image');
+        const nextBtn = document.getElementById('next-image');
+        const toggleAdditionalBtn = document.getElementById('toggle-additional');
+        const closeAdditionalBtn = document.getElementById('close-additional');
+        const errorCloseBtn = document.getElementById('error-close');
+        const successCloseBtn = document.getElementById('success-close');
+        const aboutBtn = document.getElementById('about-btn');
 
-        document.getElementById('error-close').addEventListener('click', () => this.hidePopup('error-popup'));
-        document.getElementById('success-close').addEventListener('click', () => this.hidePopup('success-popup'));
-        
-        document.getElementById('about-btn').addEventListener('click', () => this.openAbout());
+        if (backToWizardBtn) backToWizardBtn.addEventListener('click', () => this.showFormWizard());
+        if (zoomInBtn) zoomInBtn.addEventListener('click', () => this.zoomIn());
+        if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => this.zoomOut());
+        if (resetZoomBtn) resetZoomBtn.addEventListener('click', () => this.resetZoom());
+        if (fullscreenBtn) fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+        if (downloadBtn) downloadBtn.addEventListener('click', () => this.downloadImage());
+        if (prevBtn) prevBtn.addEventListener('click', () => this.previousImage());
+        if (nextBtn) nextBtn.addEventListener('click', () => this.nextImage());
+        if (toggleAdditionalBtn) toggleAdditionalBtn.addEventListener('click', () => this.toggleAdditionalPanel());
+        if (closeAdditionalBtn) closeAdditionalBtn.addEventListener('click', () => this.closeAdditionalPanel());
+        if (errorCloseBtn) errorCloseBtn.addEventListener('click', () => this.hidePopup('error-popup'));
+        if (successCloseBtn) successCloseBtn.addEventListener('click', () => this.hidePopup('success-popup'));
+        if (aboutBtn) {
+            console.log('About button found, setting up event listener');
+            aboutBtn.addEventListener('click', () => this.openAbout());
+        } else {
+            console.log('About button not found!');
+        }
 
         this.setupImagePanning();
 
@@ -321,7 +340,10 @@ class CurriculumApp {
         const value = card.dataset.value;
         const step = this.currentStep;
 
-        document.querySelectorAll(`#step-${step} .option-card`).forEach(c => {
+        console.log('Option selected:', value, 'in step:', step);
+
+        const currentStepCards = document.querySelectorAll(`#step-${step} .option-card`);
+        currentStepCards.forEach(c => {
             c.classList.remove('selected');
         });
 
@@ -330,6 +352,8 @@ class CurriculumApp {
         if (step === 1) this.selections.stream = value;
         if (step === 2) this.selections.year = value;
         if (step === 3) this.selections.semester = value;
+
+        console.log('Current selections:', this.selections);
 
         setTimeout(() => {
             if (step < 3) {
@@ -823,13 +847,21 @@ class CurriculumApp {
 }
 
 function closeAbout() {
-    if (typeof app !== 'undefined') {
+    if (typeof app !== 'undefined' && app) {
         app.closeAbout();
+    } else {
+        const modal = document.getElementById('about-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
     }
 }
 
 function goToStep(step) {
-    app.goToStep(step);
+    if (typeof app !== 'undefined' && app) {
+        app.goToStep(step);
+    }
 }
 
 let app;
