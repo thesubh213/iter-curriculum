@@ -1,49 +1,9 @@
-# Robots.txt for ITER Curriculum Viewer
-# Optimized for search engine crawling
-
 User-agent: *
 Allow: /
-Allow: /images/
-Allow: /*.css
-Allow: /*.js
-Allow: /*.webp
-Allow: /*.png
-Allow: /*.jpg
-Allow: /*.jpeg
-Allow: /*.svg
 
-# Disallow unnecessary paths
-Disallow: /cache/
-Disallow: /.well-known/
-Disallow: /service-worker.js
-Disallow: /manifest.json
+# Allow all search engines to crawl the site
+Disallow: /src/
+Disallow: /public/
 
-# Specific crawl rules for major search engines
-User-agent: Googlebot
-Allow: /
-Crawl-delay: 1
-
-User-agent: Bingbot
-Allow: /
-Crawl-delay: 2
-
-User-agent: Slurp
-Allow: /
-Crawl-delay: 2
-
-# Social media crawlers
-User-agent: facebookexternalhit
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: LinkedInBot
-Allow: /
-
-# Sitemap locations
-Sitemap: https://iter-curriculum.netlify.app/sitemap.xml
-Sitemap: https://iter-curriculum.pages.dev/sitemap.xml
-
-# Additional crawl settings
-Crawl-delay: 1
+# Sitemap location
+Sitemap: https://your-domain.com/sitemap.xml

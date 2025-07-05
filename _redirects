@@ -1,8 +1,0 @@
-# Redirect all 404s to index.html for SPA behavior
-/* /index.html 200
-
-# Force HTTPS
-http://iter-curriculum.pages.dev/* https://iter-curriculum.pages.dev/:splat 301!
-
-# Optional: Add any specific redirects if needed
-# /old-path /new-path 301

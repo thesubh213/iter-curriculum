@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found - ITER Curriculum Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .error-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .error-content {
+            background: var(--glass-backdrop);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 40px;
+            max-width: 500px;
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        
+        .error-title {
+            font-size: 2rem;
+            color: var(--primary-teal);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .error-message {
+            color: var(--gray);
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-page">
+        <div class="error-content">
+            <div class="error-icon">📚</div>
+            <h1 class="error-title">Page Not Found</h1>
+            <p class="error-message">
+                The page you're looking for doesn't exist. Let's get you back to the curriculum viewer.
+            </p>
+            <a href="/" class="btn btn-primary">Go to Homepage</a>
+        </div>
+    </div>
+</body>
+</html>

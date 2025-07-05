@@ -1,242 +1,192 @@
 # ITER Curriculum Viewer
 
-<div align="center">
+A fully offline curriculum viewer website for ITER students. This application works entirely from local files with no server, cloud, or database dependencies.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/thesubh213/iter-curriculum)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/thesubh213/iter-curriculum/pulls)
+## Features
 
-*A modern, responsive web application for viewing semester-wise curriculum documents for engineering streams at ITER*
+### 🎯 Smart Wizard Interface
+- Fullscreen animated form wizard
+- Progressive question flow (Stream → Year → Semester)
+- Smooth scroll transitions with progress indicator
+- Glassmorphism design with beige and teal color scheme
 
-[🚀 Live Demo](https://iter-curriculum.pages.dev) • [📋 Features](#features) • [🛠️ Installation](#installation) • [📖 Documentation](#documentation)
+### 🖼️ Advanced Image Viewer
+- Zoom in/out functionality with mouse/touch support
+- Pan support for zoomed images
+- Download curriculum images
+- Multi-part curriculum support (automatic detection)
+- Loading spinners for smooth transitions
 
-</div>
+### 🔁 Intelligent Session Management
+- **localStorage** for session persistence
+- Automatic restoration of last viewed curriculum
+- Background path caching for improved performance
+- Selective image preloading
 
-## 📋 Overview
+### 📱 Responsive Design
+- Mobile-first approach
+- Touch-friendly controls
+- Adaptive layout for all screen sizes
+- Glassmorphism effects throughout
 
-ITER Curriculum Viewer is a sophisticated Progressive Web Application (PWA) designed to provide seamless access to curriculum documents across multiple engineering streams. Built with modern web technologies and featuring an elegant glass-morphism design, the application offers an intuitive interface for students and faculty to browse semester-wise academic content.
+### ⚠️ Comprehensive Error Handling
+- Animated popup notifications
+- Offline support with Service Worker
+- "Coming Soon" messages for missing curricula
+- Graceful fallbacks for all error scenarios
 
-### ✨ Key Highlights
-
-- **🎯 Multi-Stream Support**: Comprehensive coverage of 11+ engineering disciplines
-- **📱 Mobile-First Design**: Optimized for all device sizes with touch-friendly interactions
-- **⚡ High Performance**: Smart caching and progressive loading for optimal user experience
-- **🎨 Modern UI/UX**: Glass-morphism design with accessibility-first approach
-- **🔄 PWA Ready**: Offline support with intelligent caching strategies
-
-## 🚀 Features
-
-### Core Functionality
-- **📅 Multi-Year Support**: Academic years 2020-2024 with expandable configuration
-- **🏗️ Complete Stream Coverage**: 11 engineering streams with intuitive navigation
-- **📚 Comprehensive Semester Navigation**: Semesters 1-8 with part-based document viewing
-- **🖼️ Advanced Image Viewer**: High-quality viewer with zoom and external opening capabilities
-
-### User Experience
-- **🔄 Smart Session Management**: Automatic restoration of user preferences
-- **📱 Responsive Design**: Mobile-first approach with comprehensive breakpoints
-- **⚡ Progressive Loading**: Real-time progress indicators and smooth animations
-- **🎯 Intuitive Navigation**: Context-aware back navigation and selection management
-
-### Technical Features
-- **💾 Intelligent Caching**: Memory-efficient image caching with automatic cleanup
-- **🔄 Background Sync**: Service worker for offline functionality
-- **♿ Accessibility Compliant**: WCAG guidelines with keyboard navigation
-- **🎨 Touch Optimized**: Enhanced touch targets for mobile devices
-
-## 🛠️ Installation
-
-### Quick Start
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/thesubh213/iter-curriculum.git
-   cd iter-curriculum
-   ```
-
-2. **Serve locally**
-   ```bash
-   # Using Python (recommended)
-   python -m http.server 8000
-   
-   # Using Node.js
-   npx serve .
-   
-   # Using PHP
-   php -S localhost:8000
-   ```
-
-3. **Access the application**
-   ```
-   http://localhost:8000
-   ```
-
-### Deployment
-
-The application is deployment-ready for any static hosting service:
-
-- **Cloudflare Pages**: Recommended for optimal performance
-- **Netlify**: Simple drag-and-drop deployment
-- **Vercel**: Automatic deployments from Git
-- **GitHub Pages**: Free hosting for public repositories
-
-## 📁 Project Structure
+## File Structure
 
 ```
 iter-curriculum/
-├── 📄 index.html              # Main application entry point
-├── 🎨 sundarta.css            # Comprehensive stylesheet with responsive design
-├── ⚡ karm.js                 # Core application logic and interactions
-├── ⚙️ config.js               # Configuration for streams and constants
-├── 🔧 service-worker.js       # PWA service worker for caching
-├── 📱 manifest.json           # PWA manifest configuration
-├── 🗂️ images/                 # Organized curriculum documents
-│   └── 📅 [year]/
-│       └── 🏗️ [stream-code]/
-│           ├── 📄 [stream]-sem[number].webp
-│           ├── 📄 [stream]-sem[number]-[part].webp
-│           └── 📁 others/
-│               └── 📄 [additional-files].webp
-└── 📚 README.md               # Project documentation
+├── index.html          # Main application file
+├── styles.css          # Glassmorphism styling
+├── script.js           # Core application logic
+├── sw.js              # Service Worker for offline support
+├── README.md          # This file
+└── images/            # Curriculum images
+    └── {year}/        # e.g., 2024/
+        ├── {stream}-sem{n}.webp        # Main curriculum
+        ├── {stream}-sem{n}-1.webp      # Multi-part (if exists)
+        ├── {stream}-sem{n}-2.webp      # Additional parts
+        ├── {stream}-1.webp             # Additional resources
+        └── {stream}-2.webp             # More resources
 ```
 
-## 🏗️ Engineering Streams
+## Image Naming Convention
 
-| Stream Code | Full Name | Semesters |
-|-------------|-----------|-----------|
-| `ce` | Civil Engineering | 1-8 |
-| `cse` | Computer Science & Engineering | 1-8 |
-| `cse-aiml` | CSE (Artificial Intelligence & Machine Learning) | 1-8 |
-| `cse-ds` | CSE (Data Science) | 1-8 |
-| `cse-iot` | CSE (Internet of Things) | 1-8 |
-| `cse-cs` | CSE (Cyber Security) | 1-8 |
-| `cs-it` | Computer Science & Information Technology | 1-8 |
-| `ece` | Electronics & Communication Engineering | 1-8 |
-| `ee` | Electrical Engineering | 1-8 |
-| `eee` | Electrical & Electronics Engineering | 1-8 |
-| `me` | Mechanical Engineering | 1-8 |
+### Semester Curricula
+- `{stream}-sem{semester}.webp` - Main curriculum
+- `{stream}-sem{semester}-{part}.webp` - Multi-part curricula
 
-## 📖 Documentation
+### Additional Resources
+- `{stream}-{number}.webp` - Additional study materials
 
-### Image Naming Convention
+### Examples
+- `ce-sem1.webp` - Computer Engineering Semester 1
+- `ce-sem2-1.webp` - CE Semester 2, Part 1
+- `ce-sem2-2.webp` - CE Semester 2, Part 2
+- `ce-1.webp` - CE Additional Resource 1
 
-The application follows a structured naming convention for optimal organization:
+## Supported Streams
 
-- **Single Document**: `[stream-code]-sem[semester].webp`
-  - Example: `cse-sem1.webp`
-- **Multi-Part Documents**: `[stream-code]-sem[semester]-[part].webp`
-  - Example: `cse-sem2-1.webp`, `cse-sem2-2.webp`
-- **Additional Resources**: `images/[year]/[stream-code]/others/[filename].webp`
-  - Example: `images/2024/cse/others/syllabus.webp`
+- **CE** - Computer Engineering
+- **IT** - Information Technology  
+- **CSE** - Computer Science Engineering
+- **ECE** - Electronics & Communication Engineering
+- **EEE** - Electrical & Electronics Engineering
+- **ME** - Mechanical Engineering
 
-### Configuration
+## Quick Start
 
-The `config.js` file contains all configurable options:
+### Option 1: Local Development
+1. Clone/download this repository
+2. Add curriculum images to the `images/{year}/` folders
+3. Open `index.html` in any modern web browser
+4. No server required!
 
+### Option 2: Static Hosting
+1. Upload all files to any static hosting service
+2. Access via the hosted URL
+3. Works offline after first visit
+
+### Option 3: Offline Distribution
+1. Zip the entire folder
+2. Distribute via USB/email
+3. Users extract and open `index.html`
+4. Full functionality without internet
+
+## Browser Support
+
+- ✅ Chrome/Chromium (recommended)
+- ✅ Firefox
+- ✅ Safari
+- ✅ Edge
+- ✅ Mobile browsers
+
+## Technical Details
+
+### Storage
+- **localStorage**: Session persistence
+- **IndexedDB**: Future expansion capability
+- **Service Worker**: Offline functionality
+- **Memory Cache**: Runtime image preloading
+
+### Performance
+- Lazy loading for additional resources
+- Progressive image caching
+- Minimal DOM manipulation
+- Optimized for low-end devices
+
+### Security
+- No external dependencies
+- No data transmission
+- Local-only operation
+- Privacy-focused design
+
+## Keyboard Shortcuts
+
+When viewing curriculum:
+- `←/→` - Navigate between image parts
+- `+/-` - Zoom in/out
+- `0` - Reset zoom
+- `ESC` - Close additional panel
+
+## Adding New Curricula
+
+1. Create year folder: `images/2025/`
+2. Add curriculum images following naming convention
+3. Application automatically detects new images
+4. No code changes required
+
+## Customization
+
+### Colors
+Edit CSS variables in `styles.css`:
+```css
+:root {
+    --primary-beige: #f7f3e9;
+    --primary-teal: #4a9b9e;
+    /* ... more variables */
+}
+```
+
+### Streams
+Add new streams in `script.js` and `index.html`:
 ```javascript
-const CONFIG = {
-    years: ['2024', '2023', '2022', '2021', '2020'],
-    streams: {
-        'cse': 'Computer Science & Engineering',
-        'ce': 'Civil Engineering',
-    },
-    imageFormat: 'webp',
-    cachingEnabled: true
-};
+const streams = ['ce', 'it', 'cse', 'ece', 'eee', 'me', 'new-stream'];
 ```
 
-### Caching Strategy
+## Troubleshooting
 
-The application implements an intelligent caching system:
+### Images not loading
+1. Check file paths match naming convention
+2. Ensure images are in correct year folder
+3. Verify file extensions are `.webp`
 
-- **Smart Caching**: Only active semester images are cached
-- **Memory Management**: Automatic cleanup of unused cache entries
-- **Session Persistence**: User preferences saved across sessions
-- **Offline Support**: Previously viewed content accessible offline
-- **Progressive Loading**: Real-time progress indicators during load
+### Session not saving
+1. Enable localStorage in browser
+2. Check for private/incognito mode
+3. Clear browser cache if corrupted
 
-## 🤝 Contributing
+### Offline issues
+1. Visit site online first (for Service Worker)
+2. Check browser Service Worker support
+3. Manually cache important images
 
-We welcome contributions from the community! Here's how you can help:
+## License
 
-### Getting Started
+This project is open source and available under the MIT License.
 
-1. **Fork the repository**
-2. **Create a feature branch**
-   ```bash
-   git checkout -b feature/amazing-feature
-   ```
-3. **Make your changes** and ensure they follow the coding standards
-4. **Test thoroughly** across different devices and browsers
-5. **Commit your changes**
-   ```bash
-   git commit -m "Add amazing feature"
-   ```
-6. **Push to your branch**
-   ```bash
-   git push origin feature/amazing-feature
-   ```
-7. **Open a Pull Request**
+## Contributing
 
-### Contribution Guidelines
-
-- Follow the existing code style and conventions
-- Test your changes on multiple browsers and devices
-- Update documentation if needed
-- Ensure responsive design principles are maintained
-- Add comments for complex logic
-
-### Areas for Contribution
-
-- 🐛 Bug fixes and performance improvements
-- 📱 Mobile experience enhancements
-- ♿ Accessibility improvements
-- 🎨 UI/UX design refinements
-- 📚 Documentation updates
-- 🧪 Test coverage expansion
-
-## 🔧 Technical Specifications
-
-### Frontend Stack
-- **Languages**: HTML5, CSS3, JavaScript (ES6+)
-- **Design System**: Glass-morphism with sage green color palette
-- **Responsive Framework**: Mobile-first CSS Grid and Flexbox
-- **Icons**: Custom SVG icon set
-
-### Performance & Optimization
-- **Caching**: Service Worker with intelligent cache management
-- **Loading**: Progressive image loading with WebP format
-- **Optimization**: Minified assets and optimized delivery
-- **PWA Features**: Offline support and app-like experience
-
-### Browser Support
-- **Modern Browsers**: Chrome 70+, Firefox 65+, Safari 12+, Edge 79+
-- **Mobile**: iOS Safari 12+, Chrome Mobile 70+
-- **Requirements**: ES6+ support, Service Worker compatibility
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **ITER**: For providing the educational content and inspiration
-- **Contributors**: Koi nhi hai bhaiii 
-
-
-## 📞 Support
-
-Need help or have questions?
-
-- 📧 **Email**: [thesubh213@gmail.com](mailto:thesubh213@gmail.com)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/thesubh213/iter-curriculum/issues)
+1. Fork the repository
+2. Add new features or curricula
+3. Test thoroughly offline
+4. Submit pull request
 
 ---
 
-<div align="center">
+**Built for ITER students, by students** 🎓
 
-**Made with ❤️ for the ITER community**
-
-⭐ Star this repository if it helped you!
-
-</div>
+*Fully offline • No dependencies • Privacy-focused*

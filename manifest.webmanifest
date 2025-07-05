@@ -1,0 +1,41 @@
+{
+    "name": "ITER Curriculum Viewer",
+    "short_name": "ITER Curriculum",
+    "description": "View and download ITER curriculum for all streams and semesters",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f7f3e9",
+    "theme_color": "#4a9b9e",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "icons": [
+        {
+            "src": "favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        },
+        {
+            "src": "favicon.ico",
+            "sizes": "16x16 32x32 48x48",
+            "type": "image/x-icon"
+        }
+    ],
+    "categories": ["education", "utilities"],
+    "lang": "en-US",
+    "dir": "ltr",
+    "shortcuts": [
+        {
+            "name": "View Curriculum",
+            "short_name": "Curriculum",
+            "description": "Select and view curriculum",
+            "url": "/",
+            "icons": [
+                {
+                    "src": "favicon.svg",
+                    "sizes": "any",
+                    "type": "image/svg+xml"
+                }
+            ]
+        }
+    ]
+}
