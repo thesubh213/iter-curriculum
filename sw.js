@@ -11,7 +11,6 @@ const staticUrlsToCache = [
     '/favicon.ico'
 ];
 
-// Install event - cache static assets only
 self.addEventListener('install', event => {
     console.log('Service Worker installing...');
     event.waitUntil(
@@ -24,7 +23,6 @@ self.addEventListener('install', event => {
     );
 });
 
-// Activate event - clean up old caches
 self.addEventListener('activate', event => {
     console.log('Service Worker activating...');
     event.waitUntil(
@@ -41,11 +39,9 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Fetch event - serve from cache when offline, selective image caching
 self.addEventListener('fetch', event => {
     const requestUrl = new URL(event.request.url);
     
-    // Handle static files (always serve from cache if available)
     if (staticUrlsToCache.some(url => requestUrl.pathname === url || requestUrl.pathname === url.slice(1))) {
         event.respondWith(
             caches.match(event.request).then(response => {
@@ -55,7 +51,6 @@ self.addEventListener('fetch', event => {
         return;
     }
     
-    // Handle curriculum images with selective caching
     if (event.request.url.includes('images/') && event.request.url.includes('-sem')) {
         event.respondWith(
             caches.open(IMAGE_CACHE).then(cache => {
@@ -65,10 +60,8 @@ self.addEventListener('fetch', event => {
                         return response;
                     }
                     
-                    // Fetch and cache only semester images (not additional resources)
                     return fetch(event.request).then(fetchResponse => {
                         if (fetchResponse && fetchResponse.status === 200) {
-                            // Only cache semester curriculum images, not additional resources
                             if (event.request.url.includes('-sem') && !event.request.url.match(/-\d+\.webp$/)) {
                                 console.log('Caching curriculum image:', event.request.url);
                                 cache.put(event.request, fetchResponse.clone());
@@ -76,7 +69,6 @@ self.addEventListener('fetch', event => {
                         }
                         return fetchResponse;
                     }).catch(() => {
-                        // Return a fallback response for offline
                         return new Response('Image not available offline', {
                             status: 404,
                             statusText: 'Not Found'
@@ -88,7 +80,6 @@ self.addEventListener('fetch', event => {
         return;
     }
     
-    // Handle additional resource images (don't cache these)
     if (event.request.url.includes('images/') && !event.request.url.includes('-sem')) {
         event.respondWith(
             fetch(event.request).catch(() => {
@@ -101,7 +92,6 @@ self.addEventListener('fetch', event => {
         return;
     }
     
-    // For all other requests, network first
     event.respondWith(
         fetch(event.request).catch(() => {
             return caches.match(event.request);
@@ -109,7 +99,6 @@ self.addEventListener('fetch', event => {
     );
 });
 
-// Background sync for updating paths (not caching files)
 self.addEventListener('message', event => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
@@ -118,7 +107,6 @@ self.addEventListener('message', event => {
     if (event.data && event.data.type === 'CACHE_CURRENT_IMAGE') {
         const imagePath = event.data.path;
         
-        // Only cache the current semester image being viewed
         if (imagePath && imagePath.includes('-sem')) {
             caches.open(IMAGE_CACHE).then(cache => {
                 fetch(imagePath).then(response => {
@@ -127,21 +115,18 @@ self.addEventListener('message', event => {
                         cache.put(imagePath, response.clone());
                     }
                 }).catch(() => {
-                    // Silent fail for background caching
                 });
             });
         }
     }
     
     if (event.data && event.data.type === 'CLEAR_IMAGE_CACHE') {
-        // Clear image cache when user changes selection
         caches.delete(IMAGE_CACHE).then(() => {
             console.log('Cleared image cache');
         });
     }
 });
 
-// Handle errors
 self.addEventListener('error', event => {
     console.error('Service Worker error:', event.error);
 });
